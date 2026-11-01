@@ -1,0 +1,982 @@
+# VibeGuard
+## Product Requirements Document (PRD)
+
+**Product:** VibeGuard  
+**Product Category:** AI-powered Developer Tool / CLI  
+**Version:** 1.0  
+**Document Status:** Product Specification  
+**License:** Apache License 2.0  
+**Initial Release:** v0.1.0  
+**Target Platform:** Windows, macOS and Linux  
+**Primary Language Support:** JavaScript and TypeScript
+
+---
+
+# 1. Product Overview
+
+## 1.1 What is VibeGuard?
+
+VibeGuard is an open-source, AI-powered command-line tool designed to identify, analyze and automatically fix bugs, security vulnerabilities, performance bottlenecks and code-quality issues in software projects.
+
+It specifically targets developers who use AI coding tools (commonly called vibe coding), where applications are frequently generated or modified using AI assistants without sufficient code review, testing or performance optimization.
+
+VibeGuard acts as an independent quality-control and repair layer between AI-generated code and production deployment.
+
+The tool scans an entire project, identifies problems, understands their root causes, generates fixes, applies patches, runs verification tests and produces detailed reports.
+
+## 1.2 Core Philosophy
+
+**Detect problems before they reach production. Fix them with evidence. Verify every change.**
+
+VibeGuard should not be another AI code generator. Its primary responsibility is to improve the reliability, security, performance and maintainability of existing software.
+
+## 1.3 Core Workflow
+
+**Scan → Detect → Diagnose → Prioritize → Fix → Test → Verify → Report**
+
+---
+
+# 2. Problem Statement
+
+AI coding assistants have significantly reduced the time required to build software. However, applications generated through AI-assisted development frequently introduce problems.
+
+Common problems include:
+
+- Incorrect business logic.
+- Runtime errors.
+- Missing error handling.
+- Unnecessary React re-renders.
+- Inefficient database queries.
+- Security vulnerabilities.
+- Exposed API credentials.
+- Unnecessary dependencies.
+- Poor application architecture.
+- Memory leaks.
+- Incorrect API integrations.
+- Broken authentication and authorization.
+- Performance degradation.
+
+Developers often discover these issues only after deployment or when users report problems.
+
+Existing linting and static-analysis tools detect specific categories of problems but generally require developers to understand findings and implement fixes themselves.
+
+VibeGuard addresses this gap by combining deterministic code analysis with AI-powered diagnosis and autonomous repair.
+
+---
+
+# 3. Product Objectives
+
+## 3.1 Primary Objectives
+
+1. Automatically analyze JavaScript and TypeScript codebases.
+2. Detect bugs and potential runtime failures.
+3. Identify security vulnerabilities.
+4. Detect performance bottlenecks.
+5. Identify inefficient code and architectural problems.
+6. Explain detected problems in understandable language.
+7. Generate contextual AI fixing prompts.
+8. Automatically implement suitable fixes.
+9. Verify fixes using tests, linting and builds.
+10. Roll back unsuccessful modifications.
+11. Generate comprehensive project audit reports.
+
+## 3.2 Secondary Objectives
+
+- Support multiple AI providers.
+- Operate primarily on the developer's local machine.
+- Work without mandatory cloud accounts.
+- Minimize AI API consumption.
+- Integrate with Git and CI/CD pipelines.
+- Eventually support additional programming languages.
+
+## 3.3 Non-Goals for MVP
+
+The initial release will not include:
+
+- Cloud-hosted dashboards.
+- User authentication.
+- Paid subscriptions.
+- Team collaboration.
+- Cloud code storage.
+- IDE extensions.
+- Automatic deployment.
+- Multi-language analysis.
+- Background monitoring services.
+
+---
+
+# 4. Target Audience
+
+## 4.1 Primary Users
+
+**Vibe Coders**
+
+Developers using AI tools such as:
+
+- Cursor
+- Claude Code
+- Antigravity
+- Windsurf
+- Gemini CLI
+- GitHub Copilot
+
+Their primary requirement is to validate and improve AI-generated code.
+
+## 4.2 Secondary Users
+
+- Independent developers.
+- Full-stack developers.
+- Startup engineering teams.
+- Open-source contributors.
+- Software engineering students.
+- Developers maintaining existing applications.
+
+## 4.3 Supported Project Types
+
+Initial support:
+
+| Framework / Technology | Support |
+|---|---|
+| React | Required |
+| Vite | Required |
+| Node.js | Required |
+| TypeScript | Required |
+| JavaScript | Required |
+| Next.js | Initial detection and analysis where supported |
+| Express.js | Initial detection and analysis where supported |
+| Other npm projects | Progressive support |
+
+---
+
+# 5. Product Features and Functional Requirements
+
+## 5.1 Project Intelligence Engine
+
+**Objective:** Understand the structure and technology stack of a project before analyzing it.
+
+Requirements:
+
+- Automatically detect project root.
+- Identify JavaScript and TypeScript.
+- Detect frameworks and libraries.
+- Read package.json.
+- Identify dependencies and development dependencies.
+- Identify package manager.
+- Detect application entry points.
+- Identify frontend and backend directories.
+- Identify configuration files.
+- Build a project file index.
+- Detect existing test frameworks.
+- Identify existing build, lint and test scripts.
+- Exclude irrelevant files and directories.
+
+Supported exclusions:
+
+- node_modules
+- .git
+- dist
+- build
+- coverage
+- .env files
+- Generated files
+- Configured exclusion patterns
+
+**Expected output:** A structured project profile.
+
+## 5.2 Bug Detection Engine
+
+**Objective:** Identify actual and potential software defects.
+
+Detection categories:
+
+### JavaScript and TypeScript
+
+- Undefined variables.
+- Null and undefined access.
+- Unhandled promise rejections.
+- Incorrect async/await usage.
+- Incorrect type handling.
+- Unreachable code.
+- Incorrect conditional logic.
+- Missing error handling.
+- Suspicious function behavior.
+- Potential runtime exceptions.
+
+### React
+
+- Incorrect hooks usage.
+- Missing hook dependencies.
+- Missing component keys.
+- Unnecessary re-rendering.
+- Incorrect state updates.
+- Unnecessary component complexity.
+- Incorrect effect cleanup.
+- Potential memory leaks.
+
+### Backend
+
+- Missing request validation.
+- Unhandled API errors.
+- Incorrect response handling.
+- Async operation failures.
+- Missing resource cleanup.
+- Suspicious middleware configuration.
+
+Every finding must include:
+
+- Issue ID.
+- Issue category.
+- Severity.
+- Confidence score.
+- File location.
+- Line number.
+- Evidence.
+- Explanation.
+- Suggested correction.
+
+## 5.3 Performance Analysis Engine
+
+**Objective:** Identify inefficient code and measurable performance problems.
+
+### Frontend Analysis
+
+- Large JavaScript bundles.
+- Unnecessary dependencies.
+- Excessive component rendering.
+- Expensive calculations.
+- Unnecessary API requests.
+- Large assets.
+- Inefficient loading patterns.
+- Unoptimized React components.
+
+### Backend Analysis
+
+- Blocking synchronous operations.
+- Expensive loops.
+- Repeated calculations.
+- Inefficient database queries.
+- Potential memory leaks.
+- Excessive resource consumption.
+- Slow API operations.
+
+### Performance Measurement
+
+Where applicable, integrate:
+
+- Lighthouse CI.
+- Node.js CPU profiling.
+- Heap profiling.
+- Bundle analysis.
+- Runtime benchmarks.
+
+Performance findings must distinguish between:
+
+1. Static warnings.
+2. Suspected bottlenecks.
+3. Measured performance problems.
+
+VibeGuard must not claim performance improvements without supporting measurements or clearly identified static-analysis evidence.
+
+## 5.4 Security Analysis Engine
+
+**Objective:** Identify security weaknesses before deployment.
+
+Detection categories:
+
+- Hardcoded API keys.
+- Exposed credentials.
+- SQL injection patterns.
+- Unsafe dynamic code execution.
+- Insecure input handling.
+- Vulnerable dependencies.
+- Insecure configuration.
+- Authentication weaknesses.
+- Authorization weaknesses.
+- Unsafe file operations.
+- Sensitive information exposure.
+
+Integrations:
+
+- Semgrep.
+- npm audit.
+- Secret scanning.
+- Custom security rules.
+
+Security findings must distinguish between confirmed vulnerabilities and potential risks.
+
+Detected secrets must be redacted in all reports and excluded from AI requests.
+
+## 5.5 Dependency Analysis
+
+**Objective:** Identify problematic third-party packages.
+
+Requirements:
+
+- Detect vulnerable dependencies.
+- Identify outdated packages.
+- Identify unused dependencies where reliably detectable.
+- Identify duplicate dependency versions.
+- Detect incompatible package versions.
+- Display vulnerability severity.
+- Provide upgrade recommendations.
+
+Automatic dependency upgrades must be validated against compatibility and existing tests.
+
+## 5.6 Unified Issue Management
+
+All analyzers must report findings using one standardized issue format.
+
+Each issue must contain:
+
+| Field | Description |
+|---|---|
+| ID | Unique identifier |
+| Category | Bug, security, performance, quality or dependency |
+| Severity | Critical, high, medium or low |
+| Confidence | Confidence from 0–100 |
+| Title | Short issue description |
+| Description | Detailed explanation |
+| Location | File path and line number |
+| Evidence | Supporting code or analysis |
+| Root cause | Probable underlying cause |
+| Recommendation | Suggested solution |
+| Fixability | Safe, moderate or dangerous |
+| Status | Detected, diagnosed, fixed, verified, failed or ignored |
+
+The issue engine must deduplicate overlapping findings.
+
+## 5.7 AI Reasoning Engine
+
+**Objective:** Convert technical findings into actionable diagnoses.
+
+The AI engine must:
+
+1. Receive structured issue information.
+2. Retrieve relevant source-code context.
+3. Analyze surrounding dependencies.
+4. Identify probable root causes.
+5. Explain potential consequences.
+6. Determine whether the finding is actionable.
+7. Recommend an appropriate solution.
+8. Generate a structured repair plan.
+
+AI must not independently invent scan findings or claim that an issue exists without evidence.
+
+### Supported AI Providers
+
+- OpenAI
+- Google Gemini
+- DeepSeek
+- Ollama
+- OpenAI-compatible APIs
+
+### Provider Requirements
+
+- Provider-independent interface.
+- Model selection.
+- API key configuration.
+- Request timeout.
+- Retry mechanism.
+- Token usage tracking.
+- Structured output validation.
+- Context size management.
+- Secret redaction.
+
+Deterministic analysis must work without an AI API key.
+
+## 5.8 Autonomous Repair Engine
+
+**Objective:** Automatically fix detected issues while protecting the developer's existing code.
+
+This is VibeGuard's primary differentiating feature.
+
+### Repair Workflow
+
+1. Select a detected issue.
+2. Collect relevant project context.
+3. Analyze the root cause.
+4. Generate a repair plan.
+5. Generate a unified diff patch.
+6. Validate the patch.
+7. Apply the patch in an isolated working environment.
+8. Run relevant tests.
+9. Run linting.
+10. Run type checking.
+11. Run production build.
+12. Compare against baseline results.
+13. Accept or reject the modification.
+14. Roll back unsuccessful repairs.
+15. Generate a repair summary.
+
+### Repair Classification
+
+| Risk | Examples | Required action |
+|---|---|---|
+| Safe | Formatting, unused imports, simple lint fixes | Automatic |
+| Moderate | React logic, error handling, optimization | Automatic with verification |
+| Dangerous | Authentication, payments, database migrations | Explicit approval |
+
+### Repair Safety Requirements
+
+- Never overwrite existing uncommitted user changes.
+- Never silently delete project files.
+- Never execute arbitrary AI-generated shell commands.
+- Never install arbitrary packages without approval.
+- Never expose API credentials.
+- Never modify VibeGuard's own safety configuration through AI.
+- Limit repair iterations to three by default.
+- Maintain recovery points.
+- Log every patch and repair operation.
+- Roll back failed changes.
+- Never mark an unverified fix as successful.
+
+### Repair Modes
+
+**Scan mode**
+
+Analyze the project without modifying files.
+
+**Automatic repair mode**
+
+Apply safe and moderate fixes with verification.
+
+**Approval mode**
+
+Require explicit approval before dangerous changes.
+
+## 5.9 AI Fix Prompt Generator
+
+**Objective:** Generate prompts developers can use in external coding agents.
+
+Supported targets:
+
+- Cursor
+- Claude Code
+- Antigravity
+- Windsurf
+- Gemini CLI
+- Generic AI coding assistants
+
+Generated prompts must contain:
+
+- Project context.
+- Issue description.
+- Exact file location.
+- Evidence.
+- Root cause.
+- Required modifications.
+- Implementation constraints.
+- Testing instructions.
+- Expected result.
+
+Users must be able to copy generated prompts directly from the terminal.
+
+## 5.10 Verification Engine
+
+**Objective:** Ensure that applied fixes do not introduce regressions.
+
+Verification requirements:
+
+- Syntax validation.
+- ESLint.
+- TypeScript checks.
+- Unit tests.
+- Integration tests where available.
+- Production build.
+- Relevant regression tests.
+- Before/after comparison.
+
+A fix can only be marked verified when its required validation checks pass.
+
+If a check fails:
+
+1. Capture the error.
+2. Identify whether the patch caused the failure.
+3. Attempt a bounded repair if safe.
+4. Otherwise roll back.
+5. Report the failure.
+
+## 5.11 Reporting Engine
+
+**Objective:** Generate comprehensive audit reports.
+
+Supported formats:
+
+- HTML.
+- JSON.
+- Markdown.
+
+Reports must include:
+
+1. Project information.
+2. Detected framework and technologies.
+3. Scan timestamp.
+4. Total findings.
+5. Severity distribution.
+6. Bug findings.
+7. Security findings.
+8. Performance findings.
+9. Dependency findings.
+10. Fixes applied.
+11. Failed repairs.
+12. Unresolved issues.
+13. Verification results.
+14. Performance measurements where available.
+15. Recommended next actions.
+
+The HTML report should have a responsive, professional developer-oriented design.
+
+---
+
+# 6. CLI Command Requirements
+
+The following commands define the initial CLI interface.
+
+| Command | Function |
+|---|---|
+| `vibeguard init` | Initialize project configuration |
+| `vibeguard scan` | Scan project |
+| `vibeguard scan --fix` | Scan and automatically repair eligible issues |
+| `vibeguard scan --bugs` | Scan for bugs |
+| `vibeguard scan --security` | Scan for security issues |
+| `vibeguard scan --performance` | Analyze performance |
+| `vibeguard fix ISSUE-001` | Repair a specific issue |
+| `vibeguard prompt ISSUE-001` | Generate fixing prompt |
+| `vibeguard prompt --all` | Generate prompts for all actionable issues |
+| `vibeguard verify` | Verify changes |
+| `vibeguard report` | Generate report |
+| `vibeguard config` | View configuration |
+| `vibeguard --version` | Display version |
+
+### Example Workflow
+
+```bash
+npx vibeguard init
+
+npx vibeguard scan
+
+npx vibeguard scan --fix
+
+npx vibeguard verify
+
+npx vibeguard report --format html
+```
+
+---
+
+# 7. Technical Architecture
+
+## 7.1 Architecture
+
+VibeGuard must follow a modular, extensible monorepo architecture.
+
+```text
+vibeguard/
+│
+├── packages/
+│   ├── cli/
+│   ├── core/
+│   ├── analyzers/
+│   ├── ai/
+│   ├── repair/
+│   └── reports/
+│
+├── tests/
+├── examples/
+├── docs/
+├── templates/
+│
+├── package.json
+├── pnpm-workspace.yaml
+├── tsconfig.json
+├── README.md
+└── LICENSE
+```
+
+## 7.2 Technology Stack
+
+| Component | Technology |
+|---|---|
+| Programming language | TypeScript |
+| Runtime | Node.js 22+ |
+| Monorepo | pnpm workspaces |
+| CLI | Commander.js |
+| Terminal UI | Chalk, Ora, Ink |
+| AST analysis | TypeScript Compiler API |
+| Linting | ESLint |
+| Security analysis | Semgrep |
+| Dependency auditing | npm audit |
+| Testing | Vitest |
+| Performance | Lighthouse CI, Node.js profiler |
+| AI | Provider abstraction |
+| Patch engine | Unified diff |
+| Version control | Git |
+| Reports | HTML, JSON, Markdown |
+| Storage | Local filesystem |
+
+## 7.3 Architectural Principles
+
+- Modular architecture.
+- Local-first operation.
+- Provider-independent AI.
+- Deterministic analysis.
+- Evidence-based findings.
+- Secure patch application.
+- Reproducible verification.
+- Extensible analyzer interfaces.
+- Minimal external dependencies where possible.
+
+---
+
+# 8. User Experience Requirements
+
+VibeGuard must provide a clear and understandable terminal experience.
+
+### Example Terminal Output
+
+```text
+VibeGuard v0.1.0
+
+Project: my-react-app
+Framework: React + Vite + TypeScript
+
+[1/5] Project indexing ........ DONE
+[2/5] Bug analysis ............ DONE
+[3/5] Security analysis ....... DONE
+[4/5] Performance analysis ... DONE
+[5/5] AI diagnosis ............ DONE
+
+AUDIT SUMMARY
+
+Critical: 1
+High: 4
+Medium: 7
+Low: 3
+
+Total issues: 15
+
+REPAIR SUMMARY
+
+Safe fixes: 3
+Moderate fixes verified: 2
+Approval required: 2
+Failed repairs: 0
+
+Verification: PASSED
+
+Report: ./vibeguard-report.html
+```
+
+This is an illustrative output, not a fixed reporting template.
+
+### UX Requirements
+
+- Clear progress indicators.
+- Readable issue descriptions.
+- Severity indicators.
+- Repair status.
+- Actionable error messages.
+- Interactive approval for dangerous changes.
+- Useful terminal summaries.
+- No unnecessary terminal clutter.
+
+---
+
+# 9. Non-Functional Requirements
+
+## Performance
+
+- Avoid unnecessary full-project rescanning.
+- Support incremental analysis.
+- Cache reusable analysis results.
+- Avoid loading large files unnecessarily.
+- Process independent analyzers concurrently where safe.
+
+## Security
+
+- Never upload secrets.
+- Redact sensitive data.
+- Validate all AI-generated patches.
+- Isolate repair operations.
+- Protect uncommitted user modifications.
+- Never trust AI-generated commands.
+- Maintain repair logs.
+
+## Reliability
+
+- Graceful failure handling.
+- Bounded retries.
+- Rollback support.
+- Reproducible scans.
+- Structured logs.
+- Reliable exit codes.
+
+## Compatibility
+
+- Windows.
+- macOS.
+- Linux.
+- Node.js 22+.
+- npm, pnpm and Yarn projects.
+
+---
+
+# 10. Configuration Requirements
+
+VibeGuard must create `.vibeguardrc.json`.
+
+Example:
+
+```json
+{
+  "version": 1,
+  "project": {
+    "framework": "auto",
+    "language": [
+      "javascript",
+      "typescript"
+    ]
+  },
+  "scan": {
+    "bugs": true,
+    "security": true,
+    "performance": true,
+    "quality": true,
+    "dependencies": true
+  },
+  "repair": {
+    "enabled": false,
+    "autoFixSafe": true,
+    "autoFixModerate": true,
+    "dangerousRequiresApproval": true,
+    "maxIterations": 3
+  },
+  "verification": {
+    "runTests": true,
+    "runLint": true,
+    "runTypecheck": true,
+    "runBuild": true
+  },
+  "privacy": {
+    "exclude": [
+      ".env",
+      ".env.*",
+      "node_modules",
+      ".git",
+      "dist",
+      "build"
+    ]
+  }
+}
+```
+
+Configuration must be validated against a defined schema.
+
+AI must not be allowed to change safety settings.
+
+---
+
+# 11. Development Roadmap
+
+Development must happen in independently testable phases.
+
+| Phase | Deliverable |
+|---|---|
+| 0 | Repository foundation |
+| 1 | CLI and project intelligence |
+| 2 | Bug detection |
+| 3 | Security and dependency analysis |
+| 4 | Performance analysis |
+| 5 | Unified issue engine |
+| 6 | AI reasoning engine |
+| 7 | Autonomous repair |
+| 8 | Prompt generator |
+| 9 | Verification and reporting |
+| 10 | Integration and release |
+
+### Release Milestones
+
+**v0.1.0 — Initial Auditor**
+
+- CLI.
+- Project detection.
+- Static analysis.
+- Security analysis.
+- Issue reporting.
+
+**v0.2.0 — AI Intelligence**
+
+- AI diagnosis.
+- Context extraction.
+- Provider support.
+- Fix prompt generation.
+
+**v0.3.0 — Autonomous Repair**
+
+- Patch generation.
+- Patch validation.
+- Automatic repair.
+- Rollback.
+- Verification.
+
+**v0.5.0 — Advanced Analysis**
+
+- Deep project intelligence.
+- Performance profiling.
+- Incremental scanning.
+- Improved issue prioritization.
+
+**v1.0.0 — Production Release**
+
+- Stable CLI.
+- Comprehensive test coverage.
+- GitHub Actions integration.
+- Documentation.
+- npm distribution.
+
+---
+
+# 12. MVP Acceptance Criteria
+
+VibeGuard v0.1.0 is considered complete when:
+
+- It installs successfully through npm.
+- It detects supported JavaScript and TypeScript projects.
+- It scans the project without modifying source files.
+- It detects supported bugs.
+- It identifies security and dependency vulnerabilities.
+- It detects supported performance issues.
+- It generates structured findings.
+- It identifies exact file locations.
+- It produces HTML and JSON reports.
+- It works without an AI API key for deterministic analysis.
+- It passes automated unit and integration tests.
+
+Autonomous repair is a subsequent milestone and must not be considered production-ready until patch validation and rollback are tested.
+
+---
+
+# 13. Testing Strategy
+
+Create dedicated test repositories and fixtures containing known issues.
+
+Test scenarios must include:
+
+1. React application with incorrect hooks.
+2. TypeScript application with type errors.
+3. Node.js backend with missing error handling.
+4. Application containing vulnerable dependencies.
+5. Project with hardcoded test credentials.
+6. React application with inefficient rendering.
+7. Project with circular dependencies.
+8. Application with broken tests.
+9. Project with uncommitted user modifications.
+10. Application where an AI-generated repair introduces a regression.
+
+Testing must validate both successful detection and false-positive behavior.
+
+Autonomous repair must be tested against deliberately broken projects before being enabled in production.
+
+---
+
+# 14. Open-Source Strategy
+
+## Repository
+
+GitHub: `vibeguard`
+
+## License
+
+Apache License 2.0.
+
+## Distribution
+
+npm package:
+
+```bash
+npm install -g vibeguard
+```
+
+Or:
+
+```bash
+npx vibeguard scan
+```
+
+## Community Features
+
+- Public issue tracker.
+- Contribution guidelines.
+- Security reporting policy.
+- Pull request templates.
+- Documentation.
+- Example projects.
+- Versioned releases.
+
+## Contribution Principles
+
+- All analyzers must have tests.
+- New detection rules must include test fixtures.
+- AI providers must implement the common interface.
+- Repair operations must preserve safety guarantees.
+- No proprietary cloud dependency should be required for core functionality.
+
+---
+
+# 15. Success Metrics
+
+Measure product performance using:
+
+| Metric | Objective |
+|---|---|
+| Detection precision | Minimize false positives |
+| Detection coverage | Detect supported issue categories |
+| Repair success rate | Percentage of attempted repairs passing verification |
+| Rollback reliability | Preserve original project state after failed repairs |
+| Scan duration | Minimize time required for analysis |
+| AI token consumption | Minimize unnecessary context and requests |
+| Build success | No regressions from accepted repairs |
+| User adoption | npm downloads and GitHub activity |
+
+Do not optimize for the number of issues reported. Optimize for useful, reproducible findings and verified fixes.
+
+---
+
+# 16. Future Scope
+
+Potential future capabilities:
+
+- Python, Java, Go and Rust support.
+- GitHub pull request auditing.
+- GitHub Actions integration.
+- IDE extensions.
+- Database schema analysis.
+- Supabase and Firebase-specific checks.
+- Cloudflare configuration auditing.
+- API contract validation.
+- Architecture visualization.
+- Continuous repository monitoring.
+- Multi-agent analysis.
+- AI-generated regression tests.
+
+These features must not delay the initial release.
+
+---
+
+# 17. Product Definition of Done
+
+VibeGuard succeeds when a developer can enter an existing JavaScript or TypeScript project, run one command and receive a reliable analysis of its software quality.
+
+The developer should be able to:
+
+1. Understand what is broken.
+2. Understand why it is broken.
+3. Know which issues matter most.
+4. Automatically repair eligible issues.
+5. Verify the modifications.
+6. Roll back unsuccessful changes.
+7. Receive a comprehensive report.
+
+The final product must be a genuinely useful, open-source engineering tool.
+
+**VibeGuard is not another code generator. It is the quality-control and autonomous repair layer for AI-assisted software development.**

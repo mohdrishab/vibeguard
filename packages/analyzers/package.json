@@ -1,0 +1,27 @@
+{
+  "name": "@vibeguard/analyzers",
+  "version": "0.1.0",
+  "description": "Deterministic static-analysis analyzers for VibeGuard",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@vibeguard/core": "workspace:*"
+  }
+}

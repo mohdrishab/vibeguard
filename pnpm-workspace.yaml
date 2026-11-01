@@ -1,0 +1,7 @@
+packages:
+  - 'packages/*'
+
+# Dependency build-script approval (pnpm 12 `allowBuilds`).
+# esbuild's binary install script is required by Vitest.
+allowBuilds:
+  esbuild: true
