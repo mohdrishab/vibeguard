@@ -6,7 +6,42 @@ VibeGuard helps developers — especially vibe coders shipping fast — find, di
 
 Core workflow: **Scan → Detect → Diagnose → Prioritize → Fix → Test → Verify → Report**
 
-> **Status: Phase 0 (repository foundation) complete.** The CLI exposes `--version` and `--help` only. Scanning, analysis, and repair are under active development — see [Roadmap](#roadmap).
+> **Status: Phase 1 (CLI + project intelligence) complete.** `init`, `scan`, `config` are live and detect real project stacks. Static analyzers, AI diagnosis, and repair arrive in later phases — see [Roadmap](#roadmap).
+
+## Usage
+
+All commands produce human output by default; add `--json` for stable, machine-readable output.
+
+### `vibeguard init [dir] [--force] [--json]`
+
+Detects the project stack, indexes files, and writes a starter `.vibeguardrc.json`. Existing configs are never overwritten without `--force` (exit code 1, `[CONFIG_EXISTS]` otherwise).
+
+### `vibeguard scan [dir] [--json]`
+
+Project intelligence today: languages, frameworks, package manager, entry points, config inventory, file index (sensitive files are skipped, never read), plus applied excludes from `.vibeguardrc.json`. Findings are an honest `[]` until the static analyzers land in Phase 2.
+
+### `vibeguard config [dir] [--json]`
+
+Shows the resolved configuration — the file's contents when `.vibeguardrc.json` exists, or the defaults when it doesn't (clearly labeled).
+
+### Configuration file
+
+`.vibeguardrc.json` is validated strictly (unknown keys are rejected):
+
+```json
+{
+  "version": 1,
+  "scan": {
+    "exclude": ["src/generated/**"]
+  }
+}
+```
+
+### Behavior notes
+
+- **Implicit vs. explicit directories.** Without `[dir]`, VibeGuard walks up to the nearest ancestor with a `package.json`. With an explicit `[dir]`, that exact directory must contain a `package.json` — ancestors are never adopted.
+- **Sensitive files are never indexed or read.** `.env*`, private keys (`id_rsa`, `*.pem`, `*.key`, `*.pfx`, …), `.npmrc`, cloud credential files, and `*.tfvars` are skipped and reported by name only. Their contents never reach AI providers.
+- **Errors are structured.** Failures print `[CODE] message` with codes like `NO_PROJECT`, `INVALID_PACKAGE_JSON`, `INVALID_CONFIG`, `CONFIG_EXISTS`, and exit `1`.
 
 ## Features (planned)
 
@@ -67,8 +102,8 @@ PRs must come from a feature branch and pass CI (lint, typecheck build, tests). 
 | Phase | Scope                                                     | Status  |
 | ----- | --------------------------------------------------------- | ------- |
 | 0     | Monorepo foundation (TS, ESLint, Vitest, CI)              | ✅ Done |
-| 1     | CLI, project intelligence, `.vibeguardrc.json`            | 🔜 Next |
-| 2     | Static analysis & bug detection (ESLint, TSC API)         | Planned |
+| 1     | CLI, project intelligence, `.vibeguardrc.json`            | ✅ Done |
+| 2     | Static analysis & bug detection (ESLint, TSC API)         | 🔜 Next |
 | 3     | Security & dependency auditing                            | Planned |
 | 4     | Performance analysis                                      | Planned |
 | 5     | Unified issue engine                                      | Planned |

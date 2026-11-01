@@ -19,4 +19,15 @@ export interface ProjectInfo {
   readonly scripts: Readonly<Record<string, string>>;
   /** Source files in the scan scope, POSIX-style relative paths. */
   readonly files: readonly string[];
+  /**
+   * Entry-point candidates, POSIX-style relative paths: package.json
+   * `main` / `module` fields plus conventional candidates verified to
+   * exist in the file index.
+   */
+  readonly entryPoints: readonly string[];
+  /**
+   * Known tool/config files present in the scanned project (e.g.
+   * `tsconfig.json`, `vite.config.ts`), POSIX-style relative paths.
+   */
+  readonly configFiles: readonly string[];
 }

@@ -20,3 +20,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (adhere
 - AI provider contract with environment-based API-key resolution.
 - Repair safety-level model (`safe` / `moderate` / `dangerous`).
 - Report format contract (`html` / `json` / `markdown`).
+
+- Project intelligence (`@vibeguard/core`): project root detection (ancestor walk for implicit cwd, exact-directory policy for explicit `[dir]`), package manager detection (`packageManager` field > lockfile priority > npm default), language family detection with deterministic ordering, framework detection (React, Next.js, Vite, Node.js), full project analyzer (`analyzeProject`/`analyzeProjectDetailed`) with frozen `ProjectInfo` incl. entry points and config inventory.
+- File indexing with default excludes (`node_modules`, `.git`, `dist`, `build`, `coverage`, framework caches), user excludes, POSIX-path normalization, deterministic sort, and no symlink traversal.
+- Sensitive-file policy: `.env*`, private keys and key stores, registry/cloud credentials, and `*.tfvars` are never indexed or read — names are reported only.
+- Structured errors (`VibeGuardError`) with stable codes: `NO_PROJECT`, `INVALID_PACKAGE_JSON`, `INVALID_CONFIG`, `CONFIG_EXISTS`.
+- Strictly validated `.vibeguardrc.json` (`version: 1`, strict-object schema via zod) with defaults, atomic non-overwrite writes (`CONFIG_EXISTS` without `--force`), and `serializeConfig` stability.
+- CLI commands: `vibeguard init [dir] [--force] [--json]`, `vibeguard scan [dir] [--json]`, `vibeguard config [dir] [--json]` with human and machine output modes.
+- Injectable I/O layer, TTY-aware spinner (silent in non-TTY for deterministic output), chalk-formatted human summaries.
+- `[CODE] message` error rendering with exit code 1.
