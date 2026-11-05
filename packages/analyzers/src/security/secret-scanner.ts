@@ -1,0 +1,170 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import type { Issue, IssueCategory, ProjectInfo, Severity } from '@vibeguard/core';
+
+import type { Analyzer } from '../analyzer.js';
+import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
+
+const SECRET_ID = 'secret-scanner';
+const SECRET_NAME = 'Secret Scanner';
+
+export interface SecretPattern {
+  readonly kind: string;
+  readonly regex: RegExp;
+  /** Index of the capture group holding the actual secret value (0 = full match). */
+  readonly redactGroup: number;
+  readonly severity: Severity;
+  readonly category: IssueCategory;
+  readonly recommendation: string;
+}
+
+const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
+  {
+    kind: 'aws-access-key-id',
+    regex: /AKIA[0-9A-Z]{16}/g,
+    redactGroup: 0,
+    severity: 'critical',
+    category: 'security',
+    recommendation: 'Rotate the exposed AWS access key immediately; never commit credentials to source control.',
+  },
+  {
+    kind: 'github-token',
+    regex: /ghp_[A-Za-z0-9]{36}/g,
+    redactGroup: 0,
+    severity: 'critical',
+    category: 'security',
+    recommendation: 'Revoke the exposed GitHub personal access token; use a fine-grained token with scoped access.',
+  },
+  {
+    kind: 'openai-api-key',
+    regex: /sk-[A-Za-z0-9]{20,}/g,
+    redactGroup: 0,
+    severity: 'critical',
+    category: 'security',
+    recommendation: 'Rotate the exposed OpenAI API key; store it in an environment variable or secrets manager.',
+  },
+  {
+    kind: 'generic-api-key',
+    regex: /(api[_-]?key|apikey)\s*[:=]\s*['"]?([A-Za-z0-9_-]{16,})['"]?/gi,
+    redactGroup: 2,
+    severity: 'high',
+    category: 'security',
+    recommendation: 'Replace the hardcoded API key with a reference to an environment variable or secrets manager.',
+  },
+  {
+    kind: 'generic-secret',
+    regex: /(secret|private[_-]?key|access[_-]?token)\s*[:=]\s*['"]?([A-Za-z0-9_-]{16,})['"]?/gi,
+    redactGroup: 2,
+    severity: 'high',
+    category: 'security',
+    recommendation: 'Replace the hardcoded secret with a reference to an environment variable or secrets manager.',
+  },
+  {
+    kind: 'password-assignment',
+    regex: /password\s*[:=]\s*['"]?([^'"\s]{8,})['"]?/gi,
+    redactGroup: 1,
+    severity: 'high',
+    category: 'security',
+    recommendation: 'Remove the hardcoded password; read it from an environment variable at runtime.',
+  },
+  {
+    kind: 'connection-string-with-credentials',
+    regex: /(mongodb|postgres|mysql|redis)(\+srv)?:\/\/[^:]+:[^@]+@/gi,
+    redactGroup: 0,
+    severity: 'critical',
+    category: 'security',
+    recommendation: 'Strip credentials from the connection string; use environment variables for username/password.',
+  },
+]);
+
+function redactSecret(line: string, match: RegExpExecArray, redactGroup: number): string {
+  const value = match[redactGroup] ?? match[0] ?? '';
+  if (value === '') {
+    return line;
+  }
+  return line.replace(value, '[REDACTED]');
+}
+
+export class SecretScanner implements Analyzer {
+  public readonly id = SECRET_ID;
+  public readonly name = SECRET_NAME;
+
+  public applicability(
+    project: ProjectInfo,
+  ): { kind: 'applicable' } | { kind: 'not-applicable'; reason: string } {
+    if (lintableFiles(project.files).length === 0) {
+      return {
+        kind: 'not-applicable',
+        reason: 'No JavaScript or TypeScript source files are in scope.',
+      };
+    }
+    return { kind: 'applicable' };
+  }
+
+  public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
+    const files = lintableFiles(project.files);
+    const issues: Issue[] = [];
+
+    for (const file of files) {
+      const fileIssues = await this.scanFile(project, file);
+      issues.push(...fileIssues);
+    }
+
+    return issues;
+  }
+
+  private async scanFile(project: ProjectInfo, file: string): Promise<Issue[]> {
+    let content: string;
+    try {
+      content = await readFile(path.join(project.root, ...file.split('/')), 'utf8');
+    } catch {
+      return [];
+    }
+
+    const issues: Issue[] = [];
+    const lines = content.split(/\r?\n/u);
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex];
+      if (line === undefined) {
+        continue;
+      }
+      const startLine = lineIndex + 1;
+
+      for (const pattern of SECRET_PATTERNS) {
+        let match: RegExpExecArray | null;
+        pattern.regex.lastIndex = 0;
+        while ((match = pattern.regex.exec(line)) !== null) {
+          const redactedLine = redactSecret(line, match, pattern.redactGroup);
+          const snippet =
+            redactedLine.trim().length > 0 ? redactedLine.trim() : undefined;
+
+          issues.push(
+            buildIssue({
+              category: pattern.category,
+              severity: pattern.severity,
+              title: `Hardcoded ${pattern.kind}`,
+              description:
+                `A ${pattern.kind} is embedded in source code at ${file}:${startLine}. ` +
+                'Hardcoded credentials are a confirmed security risk: anyone with repo access can extract them.',
+              file,
+              startLine,
+              endLine: startLine,
+              recommendation: pattern.recommendation,
+              fixability: 'manual-only',
+              source: SECRET_ID,
+              evidence: makeEvidence(
+                pattern.kind,
+                snippet,
+                { kind: pattern.kind, matchedValue: '[REDACTED]' },
+              ),
+            }),
+          );
+        }
+      }
+    }
+
+    return issues;
+  }
+}

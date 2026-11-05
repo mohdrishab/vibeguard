@@ -1,6 +1,6 @@
-import type { Issue } from '@vibeguard/core';
+import type { Issue, ProjectInfo } from '@vibeguard/core';
 
-import type { Analyzer } from './analyzer.js';
+import type { Analyzer, AnalyzerRunDetail } from './analyzer.js';
 
 /**
  * Ordered registry of analyzers. Registration is validated eagerly so a
@@ -40,5 +40,37 @@ export class AnalyzerRegistry {
   async runAll(parameters: Parameters<Analyzer['analyze']>[0]): Promise<readonly Issue[]> {
     const results = await Promise.all(this.list().map((analyzer) => analyzer.analyze(parameters)));
     return results.flat();
+  }
+
+  /**
+   * Runs every registered analyzer and reports per-engine applicability
+   * plus real output. Inapplicable engines are skipped (their `analyze`
+   * is not invoked) and surfaced with the concrete reason, so the CLI can
+   * state honestly why an engine produced nothing.
+   */
+  async runAllDetailed(project: ProjectInfo): Promise<readonly AnalyzerRunDetail[]> {
+    const details = await Promise.all(
+      this.list().map(async (analyzer) => {
+        const applicability = analyzer.applicability?.(project) ?? { kind: 'applicable' as const };
+        if (applicability.kind === 'not-applicable') {
+          return {
+            id: analyzer.id,
+            name: analyzer.name,
+            applicable: false,
+            inapplicableReason: applicability.reason,
+            issues: [],
+          };
+        }
+        const issues = await analyzer.analyze(project);
+        return {
+          id: analyzer.id,
+          name: analyzer.name,
+          applicable: true,
+          inapplicableReason: '',
+          issues,
+        };
+      }),
+    );
+    return details;
   }
 }

@@ -12,4 +12,26 @@ export interface Analyzer {
   readonly name: string;
   /** Runs the analyzer against the project. */
   analyze(project: ProjectInfo): Promise<readonly Issue[]>;
+  /**
+   * Declares whether this engine is meaningful for the given project
+   * (e.g. the TypeScript compiler only applies to TS sources). Optional:
+   * analyzers without this hook are always considered applicable.
+   */
+  applicability?(
+    project: ProjectInfo,
+  ): { kind: 'applicable' } | { kind: 'not-applicable'; reason: string };
+}
+
+/**
+ * Per-analyzer execution summary produced by
+ * {@link AnalyzerRegistry.runAllDetailed}: engine applicability plus its
+ * real issue output.
+ */
+export interface AnalyzerRunDetail {
+  readonly id: string;
+  readonly name: string;
+  readonly applicable: boolean;
+  /** Why an engine was skipped (empty for applicable engines). */
+  readonly inapplicableReason: string;
+  readonly issues: readonly Issue[];
 }

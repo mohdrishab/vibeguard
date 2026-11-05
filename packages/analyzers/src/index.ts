@@ -1,2 +1,11 @@
-export type { Analyzer } from './analyzer.js';
+export type { Analyzer, AnalyzerRunDetail } from './analyzer.js';
+export { createDefaultRegistry } from './default.js';
+export { EslintAnalyzer } from './eslint/analyzer.js';
+export { TsCompilerAnalyzer } from './tsc/analyzer.js';
+export { SecretScanner } from './security/secret-scanner.js';
+export { DependencyAudit } from './security/dependency-audit.js';
+export { BundleAnalyzer } from './performance/bundle-analyzer.js';
+export { ReactPerformanceAnalyzer } from './performance/react-performance-analyzer.js';
+export { BlockingOperationsAnalyzer } from './performance/blocking-operations-analyzer.js';
 export { AnalyzerRegistry } from './registry.js';
+export { sortIssues } from './issues.js';

@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { pathExists } from '../utils.js';
+import { isJavaScriptLikeFile, isTypeScriptFile } from '../filetypes.js';
 import { VibeGuardError } from '../errors.js';
 import type { PackageJsonLite } from '../packagejson.js';
 import type { ProjectInfo } from '../project.js';
@@ -104,9 +105,6 @@ export async function detectPackageManager(
   return 'npm';
 }
 
-const TYPESCRIPT_EXTENSIONS: RegExp = /\.(ts|tsx|mts|cts)$/u;
-const JAVASCRIPT_EXTENSIONS: RegExp = /\.(js|jsx|mjs|cjs)$/u;
-
 /**
  * Language families present in the indexed files, primary first. A pure
  * TypeScript project still lists JavaScript when tooling files
@@ -117,9 +115,9 @@ export function detectLanguages(files: readonly string[]): ProjectInfo['language
   let typescriptCount = 0;
   let javascriptCount = 0;
   for (const file of files) {
-    if (TYPESCRIPT_EXTENSIONS.test(file)) {
+    if (isTypeScriptFile(file)) {
       typescriptCount += 1;
-    } else if (JAVASCRIPT_EXTENSIONS.test(file)) {
+    } else if (isJavaScriptLikeFile(file)) {
       javascriptCount += 1;
     }
   }

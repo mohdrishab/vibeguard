@@ -1,10 +1,10 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { CONFIG_FILE_NAME, defaultConfig, loadConfig, serializeConfig } from '@vibeguard/core';
 import type { VibeGuardError } from '@vibeguard/core';
+import { createTestProject } from '@vibeguard/testing';
 
 import { runConfig } from './config.js';
 import { runInit } from './init.js';
@@ -39,18 +39,13 @@ function fakeIo(): TextIo {
 }
 
 async function fixtureProject(files: Record<string, string>): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'vibeguard-cli-test-'));
-  for (const [relative, content] of Object.entries(files)) {
-    const target = path.join(root, ...relative.split('/'));
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, content);
-  }
-  disposables.push(() => rm(root, { recursive: true, force: true }));
-  return root;
+  const project = await createTestProject(files);
+  disposables.push(project.dispose);
+  return project.root;
 }
 
 describe('runScan', () => {
-  it('emits deterministic JSON with an empty findings list', async () => {
+  it('emits deterministic JSON including per-engine analyzer summaries', async () => {
     const root = await fixtureProject({
       'package.json': JSON.stringify({ name: 'json-project', dependencies: { react: '^19' } }),
       'src/App.tsx': 'export default () => null;\n',
@@ -72,24 +67,52 @@ describe('runScan', () => {
       userExcludes: [],
       excludedSensitiveFiles: ['.env.local'],
       findings: [],
-      analyzersRun: [],
+      analyzersRun: [
+        { id: 'eslint', name: 'ESLint (bundled recommended)', applicable: true, issues: 0 },
+        { id: 'tsc', name: 'TypeScript Compiler', applicable: true, issues: 0 },
+        { id: 'secret-scanner', name: 'Secret Scanner', applicable: true, issues: 0 },
+        { id: 'dependency-audit', name: 'Dependency Audit', applicable: true, issues: 0 },
+        { id: 'bundle-analyzer', name: 'Bundle Analyzer', applicable: true, issues: 0 },
+        { id: 'react-performance', name: 'React Performance Analyzer', applicable: true, issues: 0 },
+        { id: 'blocking-operations', name: 'Blocking Operations Analyzer', applicable: false, inapplicableReason: 'Project does not appear to be a Node.js backend.', issues: 0 },
+      ],
     });
     expect(result.project.name).toBe('json-project');
   });
 
-  it('prints the human summary honestly about Phase 2', async () => {
+  it('reports engine-level findings in human output', async () => {
     const root = await fixtureProject({
-      'package.json': JSON.stringify({ name: 'human-project' }),
+      'package.json': JSON.stringify({ name: 'buggy-project' }),
       'src/index.ts': 'export {};\n',
+      'src/bug.js': 'export function total(price) { return price * unknownTaxRate; }\n',
     });
     const { io, logs } = fakeIo();
 
     await runScan(io, { root, json: false });
 
     const output = logs.join('\n');
-    expect(output).toContain('Scanned human-project');
-    expect(output).toContain('findings: 0');
-    expect(output).toContain('Phase 2');
+    expect(output).toContain('Scanned buggy-project');
+    expect(output).toContain('findings: 1');
+    expect(output).toContain('bug.js:1');
+    expect(output).toContain('no-undef');
+  });
+
+  it('marks engines not applicable when nothing matches their scope', async () => {
+    const root = await fixtureProject({
+      'package.json': JSON.stringify({ name: 'no-source-project' }),
+      'notes/readme.txt': 'text only\n',
+    });
+    const { io, logs } = fakeIo();
+
+    const result = await runScan(io, { root, json: true });
+
+    expect(result.analyzersRun).toHaveLength(7);
+    for (const summary of result.analyzersRun) {
+      expect(summary.applicable).toBe(false);
+      expect(summary.inapplicableReason).toBeTruthy();
+      expect(summary.issues).toBe(0);
+    }
+    expect(JSON.parse(logs[0] ?? '')['findings']).toEqual([]);
   });
 
   it('fails loudly on an invalid config', async () => {

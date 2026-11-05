@@ -1,11 +1,11 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 /**
- * Test-only filesystem fixtures. Excluded from the published build
- * (`tsconfig.json` excludes `src/testing/**`); imported by *.test.ts
- * files only.
+ * Test-only filesystem fixtures shared across package test suites.
+ * This package is internal: it is never published and must never be
+ * imported from production code.
  */
 
 export interface TestProject {

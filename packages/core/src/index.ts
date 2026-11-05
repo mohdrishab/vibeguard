@@ -11,6 +11,9 @@ export type { ProjectInfo } from './project.js';
 export { SEVERITY_RANK, compareSeverity } from './severity.js';
 export type { Severity } from './severity.js';
 
+// File-kind predicates (shared by detection and analyzer engines).
+export { isJavaScriptLikeFile, isLintableFile, isTypeScriptFile } from './filetypes.js';
+
 // Errors.
 export { VibeGuardError } from './errors.js';
 export type { VibeGuardErrorCode } from './errors.js';

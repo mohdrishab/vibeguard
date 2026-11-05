@@ -1,0 +1,199 @@
+import { describe, expect, it } from 'vitest';
+
+import { deduplicateIssues } from './unified-issues';
+
+describe('deduplicateIssues', () => {
+  it('keeps single issues unchanged', () => {
+    const issues = [
+      {
+        id: 'vg-abc123',
+        category: 'performance' as const,
+        severity: 'high' as const,
+        confidence: 'confirmed' as const,
+        title: 'Test issue',
+        description: 'A test issue description',
+        location: {
+          file: 'src/app.ts',
+          startLine: 1,
+          endLine: 1,
+        },
+        evidence: [{ ruleId: 'test-rule', snippet: 'some code', metadata: {} }],
+        recommendation: 'Fix it',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'test-analyzer',
+      } as const,
+    ];
+
+    const result = deduplicateIssues(issues);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('vg-abc123');
+  });
+
+  it('merges two issues at the same location', () => {
+    const issues = [
+      {
+        id: 'vg-abc123',
+        category: 'performance' as const,
+        severity: 'high' as const,
+        confidence: 'confirmed' as const,
+        title: 'Missing key in rendered list',
+        description: 'A .map() renders JSX elements without a stable key prop.',
+        location: {
+          file: 'src/List.tsx',
+          startLine: 5,
+          endLine: 5,
+        },
+        evidence: [
+          {
+            ruleId: 'react-performance',
+            snippet: 'items.map(item => <div>{item}</div>',
+            metadata: { kind: 'missing-key-in-list' },
+          },
+        ],
+        recommendation: 'Add a unique, stable key prop to each element',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'react-performance',
+      } as const,
+      {
+        id: 'vg-def456',
+        category: 'performance' as const,
+        severity: 'medium' as const,
+        confidence: 'confirmed' as const,
+        title: 'Missing key in rendered list',
+        description: 'A .map() renders JSX elements without a stable key prop.',
+        location: {
+          file: 'src/List.tsx',
+          startLine: 5,
+          endLine: 5,
+        },
+        evidence: [
+          {
+            ruleId: 'react-performance',
+            snippet: 'items.map(item => <div>{item}</div>',
+            metadata: { kind: 'missing-key-in-list' },
+          },
+        ],
+        recommendation: 'Add a unique, stable key prop to each element',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'react-performance',
+      } as const,
+    ];
+
+    const result = deduplicateIssues(issues);
+    // Should merge into 1 issue (highest severity = high, combined evidence)
+    expect(result).toHaveLength(1);
+    expect(result[0].severity).toBe('high'); // highest of high/medium
+    expect(result[0].title).toBe('Missing key in rendered list');
+    // Evidence should be combined
+    expect(result[0].evidence.length).toBeGreaterThan(0);
+  });
+
+  it('handles issues from different analyzers at same location with different titles', () => {
+    const issues = [
+      {
+        id: 'vg-abc123',
+        category: 'performance' as const,
+        severity: 'high' as const,
+        confidence: 'confirmed' as const,
+        title: 'Blocking synchronous file read',
+        description: 'fs.readFileSync blocks the event loop.',
+        location: {
+          file: 'src/server.ts',
+          startLine: 10,
+          endLine: 10,
+        },
+        evidence: [
+          {
+            ruleId: 'blocking-operations',
+            snippet: 'fs.readFileSync(...)',
+            metadata: { kind: 'blocking-sync-fs-read' },
+          },
+        ],
+        recommendation: 'Use fs.readFile or fs.promises.readFile',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'blocking-operations',
+      } as const,
+      {
+        id: 'vg-def456',
+        category: 'performance' as const,
+        severity: 'medium' as const,
+        confidence: 'confirmed' as const,
+        title: 'Expensive loop in request handler',
+        description: 'A loop iterates over data inside a request handler.',
+        location: {
+          file: 'src/server.ts',
+          startLine: 10,
+          endLine: 10,
+        },
+        evidence: [
+          {
+            ruleId: 'blocking-operations',
+            snippet: 'for (...) { res.json(...) }',
+            metadata: { kind: 'expensive-loop-in-request-handler' },
+          },
+        ],
+        recommendation: 'Bound the loop or move heavy computation out',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'blocking-operations',
+      } as const,
+    ];
+
+    const result = deduplicateIssues(issues);
+    // Should merge into 1 issue at same location
+    expect(result).toHaveLength(1);
+    // Should have highest severity (high > medium)
+    expect(result[0].severity).toBe('high');
+    // Title should be combined
+    expect(result[0].title).toBe('Blocking synchronous file read & similar issue');
+  });
+
+  it('handles issues at different locations kept separate', () => {
+    const issues = [
+      {
+        id: 'vg-abc123',
+        category: 'performance' as const,
+        severity: 'high' as const,
+        confidence: 'confirmed' as const,
+        title: 'Issue at line 5',
+        description: 'First issue',
+        location: {
+          file: 'src/app.ts',
+          startLine: 5,
+          endLine: 5,
+        },
+        evidence: [{ ruleId: 'test', snippet: 'code', metadata: {} }],
+        recommendation: 'Fix',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'analyzer1',
+      } as const,
+      {
+        id: 'vg-def456',
+        category: 'performance' as const,
+        severity: 'medium' as const,
+        confidence: 'confirmed' as const,
+        title: 'Issue at line 10',
+        description: 'Second issue',
+        location: {
+          file: 'src/app.ts',
+          startLine: 10,
+          endLine: 10,
+        },
+        evidence: [{ ruleId: 'test', snippet: 'code', metadata: {} }],
+        recommendation: 'Fix',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'analyzer2',
+      } as const,
+    ];
+
+    const result = deduplicateIssues(issues);
+    // Should keep both issues separate (different locations)
+    expect(result).toHaveLength(2);
+  });
+});

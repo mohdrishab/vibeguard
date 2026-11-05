@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, packageJsonText } from '../testing/fixtures.js';
+import { createTestProject, packageJsonText } from '@vibeguard/testing';
 import { DEFAULT_EXCLUDES, indexFiles } from './files.js';
 
 const disposables: Array<() => Promise<void>> = [];

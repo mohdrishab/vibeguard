@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createTestProject } from '@vibeguard/testing';
 
 import { createProgram } from './program.js';
 import { VIBEGUARD_VERSION } from './version.js';
@@ -49,14 +50,9 @@ describe('vibeguard cli (end-to-end)', () => {
   });
 
   async function fixtureProject(files: Record<string, string>): Promise<string> {
-    const root = await mkdtemp(path.join(tmpdir(), 'vibeguard-e2e-'));
-    for (const [relative, content] of Object.entries(files)) {
-      const target = path.join(root, ...relative.split('/'));
-      await mkdir(path.dirname(target), { recursive: true });
-      await writeFile(target, content);
-    }
-    disposables.push(() => rm(root, { recursive: true, force: true }));
-    return root;
+    const project = await createTestProject(files);
+    disposables.push(project.dispose);
+    return project.root;
   }
 
   it('init writes .vibeguardrc.json and reports the project via JSON', async () => {

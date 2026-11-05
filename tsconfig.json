@@ -7,6 +7,7 @@
     { "path": "packages/ai" },
     { "path": "packages/repair" },
     { "path": "packages/reports" },
+    { "path": "packages/testing" },
     { "path": "packages/cli" }
   ]
 }

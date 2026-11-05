@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import type { Analyzer } from './analyzer.js';
 import { AnalyzerRegistry } from './registry.js';
 
-const stubProject = { root: '/', name: 'stub' } as unknown as ProjectInfo;
+const stubProject = {
+  root: '/',
+  name: 'stub',
+  files: [],
+  languages: [],
+  frameworks: [],
+} as unknown as ProjectInfo;
 
 function makeAnalyzer(id: string, issues: readonly Issue[] = []): Analyzer {
   return {
@@ -30,25 +36,79 @@ describe('AnalyzerRegistry', () => {
   it('rejects duplicate analyzer ids', () => {
     const registry = new AnalyzerRegistry();
     registry.register(makeAnalyzer('eslint'));
-    expect(() => registry.register(makeAnalyzer('eslint'))).toThrow('already registered');
+    expect(() => registry.register(makeAnalyzer('eslint'))).toThrow(/already registered/u);
   });
 
-  it('rejects empty analyzer ids', () => {
-    expect(() => new AnalyzerRegistry().register(makeAnalyzer('  '))).toThrow('non-empty string');
-  });
-
-  it('lists registered analyzers in registration order', () => {
+  it('rejects analyzers with empty ids', () => {
     const registry = new AnalyzerRegistry();
-    registry.register(makeAnalyzer('a'));
-    registry.register(makeAnalyzer('b'));
-    expect(registry.list().map((a) => a.id)).toEqual(['a', 'b']);
+    expect(() => registry.register(makeAnalyzer('   '))).toThrow(/non-empty/u);
   });
 
-  it('runs all analyzers and collects their issues', async () => {
-    const issue = { id: 'ISSUE-1' } as Issue;
+  it('preserves registration order when listing', () => {
     const registry = new AnalyzerRegistry();
-    registry.register(makeAnalyzer('a', [issue]));
-    registry.register(makeAnalyzer('b', []));
-    await expect(registry.runAll(stubProject)).resolves.toEqual([issue]);
+    registry.register(makeAnalyzer('second'));
+    registry.register(makeAnalyzer('first'));
+    expect(registry.list().map((analyzer) => analyzer.id)).toEqual(['second', 'first']);
+  });
+
+  describe('runAllDetailed', () => {
+    it('treats analyzers without an applicability hook as applicable', async () => {
+      const registry = new AnalyzerRegistry();
+      const issueList = [1, 2, 3].map(() => ({}) as Issue);
+      registry.register(makeAnalyzer('plain', issueList));
+
+      const details = await registry.runAllDetailed(stubProject);
+
+      expect(details).toEqual([
+        {
+          id: 'plain',
+          name: 'Analyzer plain',
+          applicable: true,
+          inapplicableReason: '',
+          issues: issueList,
+        },
+      ]);
+    });
+
+    it('skips not-applicable analyzers without invoking analyze', async () => {
+      let analyzeCalls = 0;
+      const registry = new AnalyzerRegistry();
+      registry.register({
+        id: 'tsc',
+        name: 'TypeScript Compiler',
+        analyze: async () => {
+          analyzeCalls += 1;
+          return [];
+        },
+        applicability: () => ({
+          kind: 'not-applicable',
+          reason: 'No TypeScript sources to type-check.',
+        }),
+      });
+
+      const details = await registry.runAllDetailed(stubProject);
+
+      expect(analyzeCalls).toBe(0);
+      expect(details).toEqual([
+        {
+          id: 'tsc',
+          name: 'TypeScript Compiler',
+          applicable: false,
+          inapplicableReason: 'No TypeScript sources to type-check.',
+          issues: [],
+        },
+      ]);
+    });
+
+    it('preserves registration order for applicable engines', async () => {
+      const registry = new AnalyzerRegistry();
+      registry.register(makeAnalyzer('eslint'));
+      registry.register(makeAnalyzer('tsc'));
+
+      const details = await registry.runAllDetailed(stubProject);
+
+      expect(details.map((detail) => detail.id)).toEqual(['eslint', 'tsc']);
+      expect(details.every((detail) => detail.applicable)).toBe(true);
+    });
   });
 });
