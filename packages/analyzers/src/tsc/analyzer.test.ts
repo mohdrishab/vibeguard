@@ -1,6 +1,6 @@
-import { analyzeProjectDetailed } from '@vibeguard/core';
-import type { ProjectInfo } from '@vibeguard/core';
-import { createTestProject } from '@vibeguard/testing';
+import { analyzeProjectDetailed } from '@closed-door/core';
+import type { ProjectInfo } from '@closed-door/core';
+import { createTestProject } from '@closed-door/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { TsCompilerAnalyzer } from './analyzer.js';

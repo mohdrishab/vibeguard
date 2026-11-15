@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { analyzeProject, analyzeProjectDetailed } from './analyze.js';
 
 const disposables: Array<() => Promise<void>> = [];

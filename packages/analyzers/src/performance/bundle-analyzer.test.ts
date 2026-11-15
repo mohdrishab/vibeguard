@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { BundleAnalyzer } from './bundle-analyzer.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -34,16 +34,16 @@ function projectInfo(root: string, overrides: Record<string, unknown> = {}): unk
 describe('BundleAnalyzer', () => {
   it('flags lodash as a heavy dependency', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { lodash: '^4.17.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { lodash: '^4.17.0' } })),
       'src/index.js': 'import _ from "lodash";\n',
     });
     const analyzer = new BundleAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['lodash'],
-      files: ['package.json', 'src/index.js'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['lodash'],
+        files: ['package.json', 'src/index.js'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].category).toBe('performance');
@@ -51,23 +51,26 @@ describe('BundleAnalyzer', () => {
     expect(issues[0].title).toBe('Heavy dependency: lodash');
     expect(issues[0].source).toBe('bundle-analyzer');
     expect(issues[0].status).toBe('open');
+    expect(issues[0].confidence).toBe('suspected');
+    expect(issues[0].fixability).toBe('manual-only');
   });
 
   it('flags moment as a heavy dependency', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { moment: '^2.29.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { moment: '^2.29.0' } })),
     });
     const analyzer = new BundleAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['moment'],
-      files: ['package.json'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['moment'],
+        files: ['package.json'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].title).toBe('Heavy dependency: moment');
     expect(issues[0].severity).toBe('medium');
+    expect(issues[0].fixability).toBe('manual-only');
   });
 
   it('flags large binary asset imports', async () => {
@@ -76,30 +79,33 @@ describe('BundleAnalyzer', () => {
       'src/app.js': "import logo from './assets/logo.png';\n",
     });
     const analyzer = new BundleAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/app.js'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/app.js'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].category).toBe('performance');
     expect(issues[0].severity).toBe('low');
     expect(issues[0].title).toContain('Large asset import');
     expect(issues[0].location.file).toBe('src/app.js');
+    expect(issues[0].confidence).toBe('suspected');
   });
 
   it('returns no issues for a project without heavy dependencies or assets', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/index.js': 'export const x = 1;\n',
     });
     const analyzer = new BundleAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/index.js'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/index.js'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(0);
   });
@@ -109,10 +115,12 @@ describe('BundleAnalyzer', () => {
       'package.json': packageJsonText(minimalPackageJson()),
     });
     const analyzer = new BundleAnalyzer();
-    const applicability = analyzer.applicability(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json'],
-    }) as never);
+    const applicability = analyzer.applicability(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json'],
+      }) as never,
+    );
 
     expect(applicability).toMatchObject({
       kind: 'not-applicable',

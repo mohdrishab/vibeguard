@@ -196,18 +196,18 @@ importers:
 
   packages/ai:
     dependencies:
-      '@vibeguard/core':
+      '@closed-door/core':
         specifier: workspace:*
         version: link:../core
 
   packages/analyzers:
     dependencies:
+      '@closed-door/core':
+        specifier: workspace:*
+        version: link:../core
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.14.0(supports-color@7.2.0))
-      '@vibeguard/core':
-        specifier: workspace:*
-        version: link:../core
       eslint:
         specifier: ^10.14.0
         version: 10.14.0(supports-color@7.2.0)
@@ -221,16 +221,16 @@ importers:
         specifier: ^8.72.1
         version: 8.72.1(eslint@10.14.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
     devDependencies:
-      '@vibeguard/testing':
+      '@closed-door/testing':
         specifier: workspace:*
         version: link:../testing
 
   packages/cli:
     dependencies:
-      '@vibeguard/analyzers':
+      '@closed-door/analyzers':
         specifier: workspace:*
         version: link:../analyzers
-      '@vibeguard/core':
+      '@closed-door/core':
         specifier: workspace:*
         version: link:../core
       chalk:
@@ -243,7 +243,7 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
     devDependencies:
-      '@vibeguard/testing':
+      '@closed-door/testing':
         specifier: workspace:*
         version: link:../testing
 
@@ -256,19 +256,19 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@vibeguard/testing':
+      '@closed-door/testing':
         specifier: workspace:*
         version: link:../testing
 
   packages/repair:
     dependencies:
-      '@vibeguard/core':
+      '@closed-door/core':
         specifier: workspace:*
         version: link:../core
 
   packages/reports:
     dependencies:
-      '@vibeguard/core':
+      '@closed-door/core':
         specifier: workspace:*
         version: link:../core
 

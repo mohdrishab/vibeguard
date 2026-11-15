@@ -1,7 +1,8 @@
 import chalk from 'chalk';
-import { createDefaultRegistry, sortIssues } from '@vibeguard/analyzers';
-import { analyzeProjectDetailed, defaultConfig, loadConfig } from '@vibeguard/core';
-import type { Issue } from '@vibeguard/core';
+import { createDefaultRegistry, deduplicateIssues, sortIssues } from '@closed-door/analyzers';
+import type { AnalyzerRegistry } from '@closed-door/analyzers';
+import { analyzeProjectDetailed, defaultConfig, loadConfig } from '@closed-door/core';
+import type { Issue } from '@closed-door/core';
 
 import type { Io } from '../io.js';
 import {
@@ -17,18 +18,18 @@ export interface ScanArgs {
   readonly root: string;
   /** Machine-readable output instead of the human summary. */
   readonly json: boolean;
+  /** Optional registry injection for embedding and deterministic tests. */
+  readonly registry?: AnalyzerRegistry;
 }
 
-/**
- * Per-engine analysis summary for a scan: which engines actually ran and
- * how many findings each produced. Inapplicable engines surface the
- * concrete skip reason instead of a misleading zero.
- */
+/** Per-engine summary including failed and intentionally skipped checks. */
 export interface AnalyzerRunSummary {
   readonly id: string;
   readonly name: string;
   readonly applicable: boolean;
+  readonly status: 'passed' | 'failed' | 'skipped';
   readonly inapplicableReason?: string;
+  readonly error?: string;
   readonly issues: number;
 }
 
@@ -39,19 +40,17 @@ export interface ScanResult {
   readonly userExcludes: readonly string[];
   readonly analyzersRun: readonly AnalyzerRunSummary[];
   readonly findings: readonly Issue[];
+  /** False when one or more applicable analyzers could not complete. */
+  readonly ok: boolean;
 }
 
 /** Human output lists at most this many findings; the rest live in reports. */
 const MAX_LISTED_FINDINGS = 10;
 
 /**
- * `vibeguard scan`: project intelligence, file indexing, and the bundled
- * deterministic engines (ESLint recommended set + the TypeScript compiler).
- *
- * Findings are exactly what the engines report — scan never fabricates or
- * suppresses results. A `.vibeguardrc.json` (if present) is validated on
- * the way in, so an invalid config fails the scan with `INVALID_CONFIG`
- * instead of being silently ignored.
+ * Runs project intelligence and bundled deterministic and heuristic analyzers.
+ * Exact duplicate findings are deduplicated; analyzer failures remain visible
+ * and make `ok` false rather than being presented as an empty result.
  */
 export async function runScan(io: Io, args: ScanArgs): Promise<ScanResult> {
   const resolved = await loadConfig(args.root);
@@ -64,26 +63,33 @@ export async function runScan(io: Io, args: ScanArgs): Promise<ScanResult> {
       exclude: userExcludes,
     });
 
-    const registry = createDefaultRegistry();
+    const registry = args.registry ?? createDefaultRegistry();
     const runs = await registry.runAllDetailed(project);
-    const findings = sortIssues(runs.flatMap((run) => [...run.issues]));
+    const findings = deduplicateIssues(sortIssues(runs.flatMap((run) => [...run.issues])));
     const analyzersRun: readonly AnalyzerRunSummary[] = runs.map((run) => ({
       id: run.id,
       name: run.name,
       applicable: run.applicable,
+      status: run.status,
       ...(run.inapplicableReason === '' ? {} : { inapplicableReason: run.inapplicableReason }),
+      ...(run.error === undefined ? {} : { error: run.error }),
       issues: run.issues.length,
     }));
+    const ok = analyzersRun.every((run) => run.status !== 'failed');
 
-    spinner.succeed(
-      `Project scanned — ${findings.length} finding${findings.length === 1 ? '' : 's'}`,
-    );
+    if (ok) {
+      spinner.succeed(
+        `Project scanned — ${findings.length} finding${findings.length === 1 ? '' : 's'}`,
+      );
+    } else {
+      spinner.fail('Scan incomplete — one or more analyzers failed');
+    }
 
     if (args.json) {
       io.log(
         JSON.stringify(
           {
-            ok: true,
+            ok,
             command: 'scan',
             project,
             userExcludes,
@@ -95,7 +101,7 @@ export async function runScan(io: Io, args: ScanArgs): Promise<ScanResult> {
           2,
         ),
       );
-      return { project, excludedSensitiveFiles, userExcludes, analyzersRun, findings };
+      return { project, excludedSensitiveFiles, userExcludes, analyzersRun, findings, ok };
     }
 
     io.log(`${Glyphs.success} Scanned ${chalk.cyan(project.name)}`);
@@ -108,13 +114,18 @@ export async function runScan(io: Io, args: ScanArgs): Promise<ScanResult> {
     io.log('');
     io.log(formatFindingsSummary(findings));
     for (const run of analyzersRun) {
-      if (run.applicable) {
+      if (run.status === 'failed') {
+        io.error(`  ${Glyphs.failure} ${run.name} — failed: ${run.error ?? 'unknown error'}`);
+      } else if (run.status === 'skipped') {
+        io.log(`  ${chalk.dim(`— ${run.name} — not applicable: ${run.inapplicableReason ?? ''}`)}`);
+      } else {
         io.log(
           `  ${Glyphs.success} ${run.name} — ${run.issues} finding${run.issues === 1 ? '' : 's'}`,
         );
-      } else {
-        io.log(`  ${chalk.dim(`— ${run.name} — not applicable: ${run.inapplicableReason ?? ''}`)}`);
       }
+    }
+    if (!ok) {
+      io.error(`${Glyphs.failure} Scan incomplete: one or more analyzers failed.`);
     }
 
     if (findings.length > 0) {
@@ -129,7 +140,7 @@ export async function runScan(io: Io, args: ScanArgs): Promise<ScanResult> {
       }
     }
 
-    return { project, excludedSensitiveFiles, userExcludes, analyzersRun, findings };
+    return { project, excludedSensitiveFiles, userExcludes, analyzersRun, findings, ok };
   } catch (error: unknown) {
     spinner.fail('Scan failed');
     throw error;

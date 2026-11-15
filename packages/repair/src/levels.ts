@@ -1,4 +1,4 @@
-import type { Fixability, IssueCategory } from '@vibeguard/core';
+import type { Fixability, IssueCategory } from '@closed-door/core';
 
 /**
  * How risky an autonomous repair is. These gate the repair engine:

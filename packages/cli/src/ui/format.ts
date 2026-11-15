@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { Issue, ProjectInfo, Severity } from '@vibeguard/core';
+import type { Issue, ProjectInfo, Severity } from '@closed-door/core';
 
 /** Fixed label width keeps summary columns aligned. */
 const LABEL_WIDTH = 14;
@@ -89,6 +89,7 @@ export function formatFindingLine(finding: Issue): string {
     decorate(finding.severity),
     `${finding.location.file}:${finding.location.startLine}`,
     finding.title,
+    ...(finding.confidence === 'suspected' ? [chalk.yellow('(suspected)')] : []),
     chalk.dim(`(${ruleId ?? finding.source})`),
   ].join('  ');
 }

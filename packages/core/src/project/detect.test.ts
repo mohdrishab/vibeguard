@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { parsePackageJson } from '../packagejson.js';
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import {
   detectFrameworks,
   detectLanguages,

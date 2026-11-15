@@ -2,7 +2,7 @@
   "name": "vibeguard-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "AI-powered autonomous codebase auditing and repair CLI for JavaScript and TypeScript projects",
+  "description": "Local-first JavaScript and TypeScript project scanner with deterministic checks and evidence-backed findings",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22"

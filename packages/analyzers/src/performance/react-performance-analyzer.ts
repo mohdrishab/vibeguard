@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { isTypeScriptFile } from '@vibeguard/core';
-import type { Issue, ProjectInfo, Severity } from '@vibeguard/core';
+import { isLintableFile } from '@closed-door/core';
+import type { Issue, ProjectInfo, Severity } from '@closed-door/core';
 
 import type { Analyzer } from '../analyzer.js';
 import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
@@ -44,7 +44,7 @@ const REACT_PATTERNS: readonly ReactPattern[] = Object.freeze([
       'This creates a new function reference on every render, causing child components to re-render unnecessarily when they rely on referential equality.',
     recommendation:
       'Extract the handler to a module-level function or use useCallback to memoize it, then pass the stable reference as the prop.',
-    fixability: 'auto-safe',
+    fixability: 'manual-only',
   },
   {
     kind: 'useeffect-missing-deps',
@@ -85,19 +85,17 @@ export class ReactPerformanceAnalyzer implements Analyzer {
         reason: 'Project does not use React.',
       };
     }
-    if (!project.files.some((file) => isTypeScriptFile(file))) {
+    if (!project.files.some((file) => isLintableFile(file))) {
       return {
         kind: 'not-applicable',
-        reason: 'No TypeScript sources to analyze for React patterns.',
+        reason: 'No JavaScript or TypeScript sources to analyze for React patterns.',
       };
     }
     return { kind: 'applicable' };
   }
 
   public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
-    const files = lintableFiles(project.files).filter((file) =>
-      isTypeScriptFile(file),
-    );
+    const files = lintableFiles(project.files);
     const issues: Issue[] = [];
 
     for (const file of files) {
@@ -133,6 +131,7 @@ export class ReactPerformanceAnalyzer implements Analyzer {
             buildIssue({
               category: 'performance',
               severity: pattern.severity,
+              confidence: 'suspected',
               title: pattern.title,
               description: pattern.description,
               file,
@@ -141,11 +140,7 @@ export class ReactPerformanceAnalyzer implements Analyzer {
               recommendation: pattern.recommendation,
               fixability: pattern.fixability,
               source: REACT_PERF_ID,
-              evidence: makeEvidence(
-                pattern.kind,
-                line.trim(),
-                { kind: pattern.kind },
-              ),
+              evidence: makeEvidence(pattern.kind, line.trim(), { kind: pattern.kind }),
             }),
           );
         }

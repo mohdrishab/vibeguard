@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { SecretScanner } from './secret-scanner.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -42,6 +42,7 @@ describe('SecretScanner', () => {
     expect(issues[0].location.file).toBe('src/config.ts');
     expect(issues[0].source).toBe('secret-scanner');
     expect(issues[0].status).toBe('open');
+    expect(issues[0].confidence).toBe('suspected');
     // Evidence must never leak the secret value.
     expect(issues[0].evidence[0]?.snippet).not.toContain('AKIAIOSFODNN7EXAMPLE');
     expect(issues[0].evidence[0]?.snippet).toContain('[REDACTED]');
@@ -68,6 +69,7 @@ describe('SecretScanner', () => {
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('critical');
+    expect(issues[0].confidence).toBe('suspected');
     expect(issues[0].title).toBe('Hardcoded github-token');
     expect(issues[0].evidence[0]?.snippet).not.toContain('ghp_');
     expect(issues[0].evidence[0]?.snippet).toContain('[REDACTED]');
@@ -148,10 +150,38 @@ describe('SecretScanner', () => {
     expect(issues[0].evidence[0]?.snippet).toContain('[REDACTED]');
   });
 
+  it('redacts every secret-like value from evidence on a line with multiple matches', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson()),
+      'src/config.ts':
+        "const config = { aws: 'AKIAIOSFODNN7EXAMPLE', apiKey: 'a1b2c3d4e5f6g7h8i9j0' };\\n",
+    });
+    const scanner = new SecretScanner();
+    const issues = await scanner.analyze({
+      root,
+      name: 'test',
+      languages: ['typescript'],
+      frameworks: [],
+      packageManager: 'npm',
+      dependencies: [],
+      scripts: {},
+      files: ['package.json', 'src/config.ts'],
+      entryPoints: [],
+      configFiles: [],
+    });
+
+    expect(issues).toHaveLength(2);
+    for (const issue of issues) {
+      expect(issue.evidence[0]?.snippet).not.toContain('AKIAIOSFODNN7EXAMPLE');
+      expect(issue.evidence[0]?.snippet).not.toContain('a1b2c3d4e5f6g7h8i9j0');
+    }
+  });
+
   it('returns no issues for clean code without secrets', async () => {
     const root = await fixtureProject({
       'package.json': packageJsonText(minimalPackageJson()),
-      'src/index.ts': "export const name = 'hello';\nexport function add(a: number, b: number) { return a + b; }\n",
+      'src/index.ts':
+        "export const name = 'hello';\nexport function add(a: number, b: number) { return a + b; }\n",
     });
     const scanner = new SecretScanner();
     const issues = await scanner.analyze({

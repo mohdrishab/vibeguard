@@ -1,9 +1,9 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import { analyzeProjectDetailed } from '@vibeguard/core';
-import type { ProjectInfo } from '@vibeguard/core';
-import { createTestProject } from '@vibeguard/testing';
+import { analyzeProjectDetailed } from '@closed-door/core';
+import type { ProjectInfo } from '@closed-door/core';
+import { createTestProject } from '@closed-door/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { EslintAnalyzer } from './analyzer.js';

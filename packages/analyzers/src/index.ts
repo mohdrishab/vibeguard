@@ -9,3 +9,4 @@ export { ReactPerformanceAnalyzer } from './performance/react-performance-analyz
 export { BlockingOperationsAnalyzer } from './performance/blocking-operations-analyzer.js';
 export { AnalyzerRegistry } from './registry.js';
 export { sortIssues } from './issues.js';
+export { deduplicateIssues } from './unified-issues.js';

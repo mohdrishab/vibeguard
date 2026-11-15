@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Issue, ProjectInfo } from '@vibeguard/core';
+import type { Issue, ProjectInfo } from '@closed-door/core';
 
 import type { Analyzer } from '../analyzer.js';
 import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
@@ -71,6 +71,7 @@ export class BundleAnalyzer implements Analyzer {
           buildIssue({
             category: 'performance',
             severity: 'medium',
+            confidence: 'suspected',
             title: `Heavy dependency: ${dep}`,
             description:
               `${dep} adds approximately ${heavy.sizeHint} to the bundle. ` +
@@ -79,13 +80,12 @@ export class BundleAnalyzer implements Analyzer {
             startLine: 1,
             endLine: 1,
             recommendation: heavy.recommendation,
-            fixability: 'auto-moderate',
+            fixability: 'manual-only',
             source: BUNDLE_ID,
-            evidence: makeEvidence(
-              dep,
-              undefined,
-              { kind: 'heavy-dependency', sizeHint: heavy.sizeHint },
-            ),
+            evidence: makeEvidence(dep, undefined, {
+              kind: 'heavy-dependency',
+              sizeHint: heavy.sizeHint,
+            }),
           }),
         );
       }
@@ -101,10 +101,7 @@ export class BundleAnalyzer implements Analyzer {
     return issues;
   }
 
-  private async scanForLargeAssets(
-    project: ProjectInfo,
-    file: string,
-  ): Promise<Issue[]> {
+  private async scanForLargeAssets(project: ProjectInfo, file: string): Promise<Issue[]> {
     let content: string;
     try {
       content = await readFile(path.join(project.root, ...file.split('/')), 'utf8');
@@ -116,7 +113,8 @@ export class BundleAnalyzer implements Analyzer {
     const lines = content.split(/\r?\n/u);
 
     // Large image/video/asset imports that may bloat the bundle.
-    const assetRegex = /from\s+['"]([^'"]*\.(?:png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|mp4|webm|mov|avi|pdf|zip|tar|gz))['"]/g;
+    const assetRegex =
+      /from\s+['"]([^'"]*\.(?:png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|mp4|webm|mov|avi|pdf|zip|tar|gz))['"]/g;
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
@@ -133,6 +131,7 @@ export class BundleAnalyzer implements Analyzer {
           buildIssue({
             category: 'performance',
             severity: 'low',
+            confidence: 'suspected',
             title: `Large asset import: ${assetPath}`,
             description:
               `The file imports a potentially large binary asset (${assetPath}). ` +
@@ -144,11 +143,7 @@ export class BundleAnalyzer implements Analyzer {
               'Optimize the asset (compress images, subset fonts, lazy-load videos), or load it dynamically to avoid blocking the initial bundle.',
             fixability: 'manual-only',
             source: BUNDLE_ID,
-            evidence: makeEvidence(
-              'large-asset-import',
-              line.trim(),
-              { assetPath },
-            ),
+            evidence: makeEvidence('large-asset-import', line.trim(), { assetPath }),
           }),
         );
       }

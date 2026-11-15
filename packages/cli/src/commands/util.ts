@@ -1,4 +1,4 @@
-import { findProjectRoot, requireProjectJsonDir, VibeGuardError } from '@vibeguard/core';
+import { findProjectRoot, requireProjectJsonDir, VibeGuardError } from '@closed-door/core';
 
 import type { Io } from '../io.js';
 

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Issue, IssueCategory, ProjectInfo, Severity } from '@vibeguard/core';
+import type { Issue, IssueCategory, ProjectInfo, Severity } from '@closed-door/core';
 
 import type { Analyzer } from '../analyzer.js';
 import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
@@ -26,7 +26,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 0,
     severity: 'critical',
     category: 'security',
-    recommendation: 'Rotate the exposed AWS access key immediately; never commit credentials to source control.',
+    recommendation:
+      'Rotate the exposed AWS access key immediately; never commit credentials to source control.',
   },
   {
     kind: 'github-token',
@@ -34,7 +35,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 0,
     severity: 'critical',
     category: 'security',
-    recommendation: 'Revoke the exposed GitHub personal access token; use a fine-grained token with scoped access.',
+    recommendation:
+      'Revoke the exposed GitHub personal access token; use a fine-grained token with scoped access.',
   },
   {
     kind: 'openai-api-key',
@@ -42,7 +44,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 0,
     severity: 'critical',
     category: 'security',
-    recommendation: 'Rotate the exposed OpenAI API key; store it in an environment variable or secrets manager.',
+    recommendation:
+      'Rotate the exposed OpenAI API key; store it in an environment variable or secrets manager.',
   },
   {
     kind: 'generic-api-key',
@@ -50,7 +53,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 2,
     severity: 'high',
     category: 'security',
-    recommendation: 'Replace the hardcoded API key with a reference to an environment variable or secrets manager.',
+    recommendation:
+      'Replace the hardcoded API key with a reference to an environment variable or secrets manager.',
   },
   {
     kind: 'generic-secret',
@@ -58,7 +62,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 2,
     severity: 'high',
     category: 'security',
-    recommendation: 'Replace the hardcoded secret with a reference to an environment variable or secrets manager.',
+    recommendation:
+      'Replace the hardcoded secret with a reference to an environment variable or secrets manager.',
   },
   {
     kind: 'password-assignment',
@@ -66,7 +71,8 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 1,
     severity: 'high',
     category: 'security',
-    recommendation: 'Remove the hardcoded password; read it from an environment variable at runtime.',
+    recommendation:
+      'Remove the hardcoded password; read it from an environment variable at runtime.',
   },
   {
     kind: 'connection-string-with-credentials',
@@ -74,16 +80,24 @@ const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
     redactGroup: 0,
     severity: 'critical',
     category: 'security',
-    recommendation: 'Strip credentials from the connection string; use environment variables for username/password.',
+    recommendation:
+      'Strip credentials from the connection string; use environment variables for username/password.',
   },
 ]);
 
-function redactSecret(line: string, match: RegExpExecArray, redactGroup: number): string {
-  const value = match[redactGroup] ?? match[0] ?? '';
-  if (value === '') {
-    return line;
+function redactSecrets(line: string): string {
+  let redacted = line;
+  for (const pattern of SECRET_PATTERNS) {
+    pattern.regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.regex.exec(line)) !== null) {
+      const value = match[pattern.redactGroup] ?? match[0] ?? '';
+      if (value !== '') {
+        redacted = redacted.split(value).join('[REDACTED]');
+      }
+    }
   }
-  return line.replace(value, '[REDACTED]');
+  return redacted;
 }
 
 export class SecretScanner implements Analyzer {
@@ -131,34 +145,33 @@ export class SecretScanner implements Analyzer {
         continue;
       }
       const startLine = lineIndex + 1;
+      const redactedLine = redactSecrets(line);
 
       for (const pattern of SECRET_PATTERNS) {
-        let match: RegExpExecArray | null;
+        let _match: RegExpExecArray | null;
         pattern.regex.lastIndex = 0;
-        while ((match = pattern.regex.exec(line)) !== null) {
-          const redactedLine = redactSecret(line, match, pattern.redactGroup);
-          const snippet =
-            redactedLine.trim().length > 0 ? redactedLine.trim() : undefined;
+        while ((_match = pattern.regex.exec(line)) !== null) {
+          const snippet = redactedLine.trim().length > 0 ? redactedLine.trim() : undefined;
 
           issues.push(
             buildIssue({
               category: pattern.category,
               severity: pattern.severity,
+              confidence: 'suspected',
               title: `Hardcoded ${pattern.kind}`,
               description:
-                `A ${pattern.kind} is embedded in source code at ${file}:${startLine}. ` +
-                'Hardcoded credentials are a confirmed security risk: anyone with repo access can extract them.',
+                `A ${pattern.kind} pattern matched source code at ${file}:${startLine}. ` +
+                'Verify the match; if it is a real credential, rotate it and remove it from source control.',
               file,
               startLine,
               endLine: startLine,
               recommendation: pattern.recommendation,
               fixability: 'manual-only',
               source: SECRET_ID,
-              evidence: makeEvidence(
-                pattern.kind,
-                snippet,
-                { kind: pattern.kind, matchedValue: '[REDACTED]' },
-              ),
+              evidence: makeEvidence(pattern.kind, snippet, {
+                kind: pattern.kind,
+                matchedValue: '[REDACTED]',
+              }),
             }),
           );
         }

@@ -1,5 +1,5 @@
 {
-  "name": "@vibeguard/reports",
+  "name": "@closed-door/reports",
   "version": "0.1.0",
   "description": "Audit and repair report generation for VibeGuard",
   "license": "Apache-2.0",
@@ -22,6 +22,6 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@vibeguard/core": "workspace:*"
+    "@closed-door/core": "workspace:*"
   }
 }

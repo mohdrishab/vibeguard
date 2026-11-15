@@ -6,13 +6,13 @@ Status as of Phase 1. This document describes the real, implemented layering and
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ @vibeguard/cli            thin CLI (wiring + formatting)   │
+│ @closed-door/cli            thin CLI (wiring + formatting)   │
 │   src/program.ts          Commander registry               │
 │   src/commands/*.ts       command behavior (init/scan/…)   │
 │   src/io.ts               injectable stdout/stderr channel │
 │   src/ui/                 spinner (TTY-aware) + formatting │
 ├────────────────────────────────────────────────────────────┤
-│ @vibeguard/core           shared contracts + intelligence  │
+│ @closed-door/core           shared contracts + intelligence  │
 │   src/issue.ts, project.ts, severity.ts   Phase-0 contracts│
 │   src/errors.ts           VibeGuardError + stable codes    │
 │   src/packagejson.ts      guarded manifest reader          │
@@ -20,10 +20,10 @@ Status as of Phase 1. This document describes the real, implemented layering and
 │   src/config/             .vibeguardrc.json schema + load  │
 │   src/testing/            test-only fixtures (not shipped) │
 ├────────────────────────────────────────────────────────────┤
-│ @vibeguard/analyzers      Phase 2+: ESLint, TS Compiler API│
-│ @vibeguard/ai             Phase 6+: provider-independent AI│
-│ @vibeguard/repair         Phase 7+: safety-gated patches   │
-│ @vibeguard/reports        Phase 9+: html/json/markdown out │
+│ @closed-door/analyzers      Phase 2+: ESLint, TS Compiler API│
+│ @closed-door/ai             Phase 6+: provider-independent AI│
+│ @closed-door/repair         Phase 7+: safety-gated patches   │
+│ @closed-door/reports        Phase 9+: html/json/markdown out │
 └────────────────────────────────────────────────────────────┘
 ```
 

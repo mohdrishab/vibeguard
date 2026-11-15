@@ -1,4 +1,4 @@
-import { defaultConfig, loadConfig } from '@vibeguard/core';
+import { defaultConfig, loadConfig } from '@closed-door/core';
 
 import type { Io } from '../io.js';
 import { Glyphs } from '../ui/format.js';

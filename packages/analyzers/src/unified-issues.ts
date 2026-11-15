@@ -1,91 +1,87 @@
-// Minimal unified issue deduplication for Phase 5
-import type { Issue } from '@vibeguard/core';
+import { createHash } from 'node:crypto';
+
+import type { Issue, IssueEvidence } from '@closed-door/core';
+import { compareSeverity } from '@closed-door/core';
 
 /**
- * Groups issues by their code location (file + start line) so that
- * findings from different analyzers targeting the same line can be
- * consolidated.
+ * Builds a deduplication key that only groups the same rule, title, and
+ * precise source location. Different findings on the same line stay distinct.
  */
-function groupByLocation(issues: readonly Issue[]): Map<string, Issue[]> {
-  const groups = new Map<string, Issue[]>();
-  for (const issue of issues) {
-    const key = `${issue.location.file}\0${issue.location.startLine}`;
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)!.push(issue);
-  }
-  return groups;
+function issueKey(issue: Issue): string {
+  return [
+    issue.location.file,
+    issue.location.startLine,
+    issue.location.endLine,
+    issue.location.startColumn ?? '',
+    issue.location.endColumn ?? '',
+    issue.evidence[0]?.ruleId ?? '',
+    issue.title,
+  ].join('\0');
 }
 
-/**
- * Merges two Issue objects into one, keeping highest severity and
- * combining evidence.
- */
-function mergeIssues(a: Issue, b: Issue): Issue {
-  const severities: Record<string, number> = { high: 3, medium: 2, low: 1 };
-  const aSec: string = a.severity;
-  const bSec: string = b.severity;
-  const highest: string = severities[aSec] >= severities[bSec] ? aSec : bSec;
+function uniqueEvidence(evidence: readonly IssueEvidence[]): readonly IssueEvidence[] {
+  const seen = new Set<string>();
+  return evidence.filter((item) => {
+    const key = JSON.stringify(item);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
 
-  const combinedEv: readonly Issue['evidence'][] =
-    a.evidence.length > 0 || b.evidence.length > 0
-      ? [
-          ...a.evidence,
-          ...b.evidence.filter(
-            (_e, i) => i >= a.evidence.length || _e.snippet !== a.evidence[0]?.snippet,
-          ),
-        ]
-      : [];
+function mergeIssues(issues: readonly Issue[]): Issue {
+  const first = issues[0];
+  if (first === undefined) {
+    throw new Error('Cannot merge an empty issue group');
+  }
 
-  const combinedTitle: string = a.title === b.title ? a.title : `${a.title} & similar issue`;
+  const severity = issues.reduce(
+    (highest, issue) => (compareSeverity(issue.severity, highest) < 0 ? issue.severity : highest),
+    first.severity,
+  );
+  const sources = [...new Set(issues.flatMap((issue) => issue.source.split(', ')))].sort();
+  const evidence = uniqueEvidence(issues.flatMap((issue) => [...issue.evidence]));
+  const key = issueKey(first);
+  const id = `vg-${createHash('sha256').update(key, 'utf8').digest('hex').slice(0, 16)}`;
 
   return {
-    ...a,
-    severity: highest,
-    title: combinedTitle,
-    evidence: combinedEv,
-    source: ` unified:${a.source},${b.source}`,
-    id: `vg-${require('node:crypto')
-      .createHash('sha256')
-      .update(
-        [a.source, b.source, a.location.file, String(a.location.startLine), a.title, b.title].join(
-          '\u001f',
-        ),
-        'utf8',
-      )
-      .digest('hex')
-      .slice(0, 16)}`,
-  } as Issue;
+    ...first,
+    id,
+    severity,
+    confidence: issues.some((issue) => issue.confidence === 'suspected')
+      ? 'suspected'
+      : 'confirmed',
+    evidence,
+    source: sources.join(', '),
+  };
 }
 
 /**
- * Deduplicates and consolidates issues from multiple analyzers.
- * - Groups by (file, startLine)
- * - Same title → merged with highest severity + combined evidence
- * - Different titles → "title & similar issue" consolidation
+ * Deduplicates exact overlapping rule findings. Findings are only considered
+ * duplicates when their rule, title, and precise location all match.
  */
 export function deduplicateIssues(issues: readonly Issue[]): Issue[] {
-  const grouped = groupByLocation(issues);
-  const result: Issue[] = [];
-
-  for (const [, group] of grouped) {
-    if (group.length <= 1) {
-      result.push(group[0]);
-      continue;
+  const grouped = new Map<string, Issue[]>();
+  for (const issue of issues) {
+    const key = issueKey(issue);
+    const group = grouped.get(key);
+    if (group === undefined) {
+      grouped.set(key, [issue]);
+    } else {
+      group.push(issue);
     }
-    let merged = group[0];
-    for (let i = 1; i < group.length; i += 1) {
-      merged = mergeIssues(merged, group[i]!);
-    }
-    result.push(merged);
   }
 
-  return result.sort((a, b) => {
-    const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    const aScore = order[a.severity] ?? 99;
-    const bScore = order[b.severity] ?? 99;
-    if (aScore !== bScore) return aScore - bScore;
-    return a.location.file.localeCompare(b.location.file);
-  });
+  return [...grouped.values()]
+    .map((group) => (group.length === 1 ? (group[0] as Issue) : mergeIssues(group)))
+    .sort(
+      (a, b) =>
+        compareSeverity(a.severity, b.severity) ||
+        a.location.file.localeCompare(b.location.file) ||
+        a.location.startLine - b.location.startLine ||
+        (a.location.startColumn ?? 0) - (b.location.startColumn ?? 0) ||
+        a.title.localeCompare(b.title),
+    );
 }

@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-import { isTypeScriptFile } from '@vibeguard/core';
-import type { Issue, ProjectInfo, Severity } from '@vibeguard/core';
+import { isTypeScriptFile } from '@closed-door/core';
+import type { Issue, ProjectInfo, Severity } from '@closed-door/core';
 import * as ts from 'typescript';
 
 import type { Analyzer } from '../analyzer.js';

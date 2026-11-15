@@ -27,10 +27,9 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/cli/src/**/*.ts'],
+    files: ['packages/cli/src/**/*.ts', 'demonstrate-dedup.ts'],
     rules: {
-      // The CLI entry point is the one place console output is allowed;
-      // a dedicated logger is introduced in a later phase.
+      // CLI commands and the standalone demo intentionally write to stdout.
       'no-console': 'off',
     },
   },

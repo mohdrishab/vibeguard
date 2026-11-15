@@ -1,5 +1,5 @@
 {
-  "name": "@vibeguard/analyzers",
+  "name": "@closed-door/analyzers",
   "version": "0.1.0",
   "description": "Deterministic static-analysis analyzers for VibeGuard",
   "license": "Apache-2.0",
@@ -23,13 +23,13 @@
   },
   "dependencies": {
     "@eslint/js": "^10.0.1",
-    "@vibeguard/core": "workspace:*",
+    "@closed-door/core": "workspace:*",
     "eslint": "^10.14.0",
     "globals": "^16.0.0",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.72.1"
   },
   "devDependencies": {
-    "@vibeguard/testing": "workspace:*"
+    "@closed-door/testing": "workspace:*"
   }
 }

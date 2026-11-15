@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject } from '@vibeguard/testing';
+import { createTestProject } from '@closed-door/testing';
 import { CONFIG_FILE_NAME, loadConfig, serializeConfig, writeConfig } from './load.js';
 import { defaultConfig, vibeguardConfigSchema } from './schema.js';
 

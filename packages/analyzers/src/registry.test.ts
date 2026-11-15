@@ -1,4 +1,4 @@
-import type { Issue, ProjectInfo } from '@vibeguard/core';
+import type { Issue, ProjectInfo } from '@closed-door/core';
 import { describe, expect, it } from 'vitest';
 
 import type { Analyzer } from './analyzer.js';
@@ -64,6 +64,7 @@ describe('AnalyzerRegistry', () => {
           id: 'plain',
           name: 'Analyzer plain',
           applicable: true,
+          status: 'passed',
           inapplicableReason: '',
           issues: issueList,
         },
@@ -94,7 +95,31 @@ describe('AnalyzerRegistry', () => {
           id: 'tsc',
           name: 'TypeScript Compiler',
           applicable: false,
+          status: 'skipped',
           inapplicableReason: 'No TypeScript sources to type-check.',
+          issues: [],
+        },
+      ]);
+    });
+
+    it('reports analyzer failures without disguising them as zero findings', async () => {
+      const registry = new AnalyzerRegistry();
+      registry.register({
+        id: 'audit',
+        name: 'Dependency Audit',
+        analyze: async () => {
+          throw new Error('registry unavailable');
+        },
+      });
+
+      await expect(registry.runAllDetailed(stubProject)).resolves.toEqual([
+        {
+          id: 'audit',
+          name: 'Dependency Audit',
+          applicable: true,
+          status: 'failed',
+          inapplicableReason: '',
+          error: 'registry unavailable',
           issues: [],
         },
       ]);

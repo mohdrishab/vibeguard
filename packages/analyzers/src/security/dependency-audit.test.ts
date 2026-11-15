@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { DependencyAudit } from './dependency-audit.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -21,7 +21,7 @@ vi.mock('node:child_process', () => {
 type AuditAdvisory = Record<string, unknown>;
 
 async function fixtureProject(files: Record<string, string>): Promise<string> {
-  const project = await createTestProject(files);
+  const project = await createTestProject({ ...files, 'package-lock.json': '{}' });
   disposables.push(project.dispose);
   return project.root;
 }
@@ -33,26 +33,28 @@ function advisoryOverrides(advisories: Record<string, AuditAdvisory>): string {
 describe('DependencyAudit', () => {
   it('reports a critical vulnerability from npm audit JSON', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { lodash: '^4.17.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { lodash: '^4.17.0' } })),
     });
 
     execFileMock.mockImplementation((file, args, options, callback) => {
-      callback(null, advisoryOverrides({
-        '1': {
-          id: '1',
-          severity: 'critical',
-          package_name: 'lodash',
-          title: 'lodash prototype pollution',
-          vulnerable_versions: '<4.17.21',
-          patched_in: '>=4.17.21',
-          overview: 'lodash is vulnerable to prototype pollution',
-          accesses: ['public'],
-          find_in: ['dependencies'],
-          npm_advisory: { url: 'https://github.com/advisories/GHSA-xxxx' },
-        },
-      }), '');
+      callback(
+        null,
+        advisoryOverrides({
+          '1': {
+            id: '1',
+            severity: 'critical',
+            package_name: 'lodash',
+            title: 'lodash prototype pollution',
+            vulnerable_versions: '<4.17.21',
+            patched_in: '>=4.17.21',
+            overview: 'lodash is vulnerable to prototype pollution',
+            accesses: ['public'],
+            find_in: ['dependencies'],
+            npm_advisory: { url: 'https://github.com/advisories/GHSA-xxxx' },
+          },
+        }),
+        '',
+      );
     });
 
     const scanner = new DependencyAudit();
@@ -80,25 +82,27 @@ describe('DependencyAudit', () => {
 
   it('maps moderate npm audit severity to high', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { somepkg: '^1.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { somepkg: '^1.0.0' } })),
     });
 
     execFileMock.mockImplementation((file, args, options, callback) => {
-      callback(null, advisoryOverrides({
-        '1': {
-          id: '1',
-          severity: 'moderate',
-          package_name: 'somepkg',
-          title: 'somepkg issue',
-          vulnerable_versions: '<1.0.1',
-          patched_in: '>=1.0.1',
-          overview: 'some issue',
-          accesses: ['public'],
-          find_in: ['dependencies'],
-        },
-      }), '');
+      callback(
+        null,
+        advisoryOverrides({
+          '1': {
+            id: '1',
+            severity: 'moderate',
+            package_name: 'somepkg',
+            title: 'somepkg issue',
+            vulnerable_versions: '<1.0.1',
+            patched_in: '>=1.0.1',
+            overview: 'some issue',
+            accesses: ['public'],
+            find_in: ['dependencies'],
+          },
+        }),
+        '',
+      );
     });
 
     const scanner = new DependencyAudit();
@@ -121,9 +125,7 @@ describe('DependencyAudit', () => {
 
   it('returns no issues when audit finds no vulnerabilities', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { safepkg: '^1.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { safepkg: '^1.0.0' } })),
     });
 
     execFileMock.mockImplementation((file, args, options, callback) => {
@@ -147,15 +149,62 @@ describe('DependencyAudit', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('returns no issues when audit command fails with no JSON output', async () => {
+  it('fails explicitly when the audit command fails without JSON output', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { somepkg: '^1.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { somepkg: '^1.0.0' } })),
     });
 
     execFileMock.mockImplementation((file, args, options, callback) => {
-      callback(new Error('command not found'), '', '');
+      callback(Object.assign(new Error('command not found'), { code: 'ENOENT' }), '', '');
+    });
+
+    const scanner = new DependencyAudit();
+    await expect(
+      scanner.analyze({
+        root,
+        name: 'test',
+        languages: ['javascript'],
+        frameworks: [],
+        packageManager: 'npm',
+        dependencies: ['somepkg'],
+        scripts: {},
+        files: ['package.json'],
+        entryPoints: [],
+        configFiles: [],
+      }),
+    ).rejects.toThrow(/audit command failed/u);
+  });
+
+  it('reads modern npm audit vulnerabilities output', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { lodash: '^4.17.0' } })),
+    });
+
+    execFileMock.mockImplementation((file, args, options, callback) => {
+      callback(
+        null,
+        JSON.stringify({
+          auditReportVersion: 2,
+          vulnerabilities: {
+            lodash: {
+              name: 'lodash',
+              severity: 'high',
+              range: '<4.17.21',
+              via: [
+                {
+                  source: 123,
+                  name: 'lodash',
+                  title: 'lodash prototype pollution',
+                  url: 'https://example.com/advisory',
+                  range: '<4.17.21',
+                },
+              ],
+              fixAvailable: true,
+            },
+          },
+        }),
+        '',
+      );
     });
 
     const scanner = new DependencyAudit();
@@ -165,14 +214,34 @@ describe('DependencyAudit', () => {
       languages: ['javascript'],
       frameworks: [],
       packageManager: 'npm',
-      dependencies: ['somepkg'],
+      dependencies: ['lodash'],
       scripts: {},
       files: ['package.json'],
       entryPoints: [],
       configFiles: [],
     });
 
-    expect(issues).toHaveLength(0);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.title).toBe('lodash prototype pollution');
+    expect(issues[0]?.severity).toBe('high');
+  });
+
+  it('is not applicable for package managers without a supported audit command', async () => {
+    const scanner = new DependencyAudit();
+    expect(
+      scanner.applicability({
+        root: '/tmp/project',
+        name: 'project',
+        languages: ['javascript'],
+        frameworks: [],
+        packageManager: 'bun',
+        dependencies: ['react'],
+        scripts: {},
+        files: ['package.json', 'bun.lock'],
+        entryPoints: [],
+        configFiles: [],
+      }),
+    ).toMatchObject({ kind: 'not-applicable' });
   });
 
   it('is not applicable when there are no dependencies', async () => {

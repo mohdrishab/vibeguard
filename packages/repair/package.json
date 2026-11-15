@@ -1,5 +1,5 @@
 {
-  "name": "@vibeguard/repair",
+  "name": "@closed-door/repair",
   "version": "0.1.0",
   "description": "Autonomous repair engine for VibeGuard",
   "license": "Apache-2.0",
@@ -22,6 +22,6 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@vibeguard/core": "workspace:*"
+    "@closed-door/core": "workspace:*"
   }
 }

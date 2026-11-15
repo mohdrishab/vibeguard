@@ -5,7 +5,7 @@
  * and shows how deduplicateIssues consolidates overlapping findings.
  */
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { BundleAnalyzer } from './packages/analyzers/src/bundle-analyzer.js';
 import { ReactPerformanceAnalyzer } from './packages/analyzers/src/react-performance-analyzer.js';
 import { BlockingOperationsAnalyzer } from './packages/analyzers/src/blocking-operations-analyzer.js';

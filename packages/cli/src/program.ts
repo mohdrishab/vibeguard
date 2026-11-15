@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import type { AnalyzerRegistry } from '@closed-door/analyzers';
 
 import { runConfig } from './commands/config.js';
 import { runInit } from './commands/init.js';
@@ -11,6 +12,8 @@ import { VIBEGUARD_VERSION } from './version.js';
 export interface ProgramOptions {
   /** Output channel; defaults to the real console (injectable in tests). */
   readonly io?: Io;
+  /** Optional analyzer registry for embedding and deterministic tests. */
+  readonly registry?: AnalyzerRegistry;
 }
 
 interface DirectoryOptions {
@@ -33,9 +36,7 @@ export function createProgram(options: ProgramOptions = {}): Command {
 
   program
     .name('vibeguard')
-    .description(
-      'AI-powered autonomous codebase auditing and repair CLI for JavaScript and TypeScript projects',
-    )
+    .description('Local-first JavaScript and TypeScript project scanner')
     .version(VIBEGUARD_VERSION, '-V, --version', 'output the version number');
 
   program
@@ -59,13 +60,20 @@ export function createProgram(options: ProgramOptions = {}): Command {
   program
     .command('scan [dir]')
     .description(
-      'Scan the project: detect stack, index files, and report current findings (static analyzers arrive in Phase 2)',
+      'Scan the project with bundled lint, type, security, and heuristic performance analyzers',
     )
     .option('--json', 'machine-readable JSON output', false)
     .action((dir: string | undefined, cmdOptions: DirectoryOptions) =>
       runAction(io, async () => {
         const root = await resolveCommandRoot(dir);
-        await runScan(io, { root, json: cmdOptions.json });
+        const result = await runScan(io, {
+          root,
+          json: cmdOptions.json,
+          ...(options.registry === undefined ? {} : { registry: options.registry }),
+        });
+        if (!result.ok) {
+          process.exitCode = 1;
+        }
       }),
     );
 

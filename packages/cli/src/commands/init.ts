@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { analyzeProjectDetailed, defaultConfig, writeConfig } from '@vibeguard/core';
+import { analyzeProjectDetailed, defaultConfig, writeConfig } from '@closed-door/core';
 
 import type { Io } from '../io.js';
 import { formatProjectSummary, Glyphs } from '../ui/format.js';

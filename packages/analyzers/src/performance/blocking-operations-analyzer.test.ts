@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { BlockingOperationsAnalyzer } from './blocking-operations-analyzer.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -38,10 +38,12 @@ describe('BlockingOperationsAnalyzer', () => {
       'src/server.ts': "const data = fs.readFileSync('file.txt');\n",
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/server.ts'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/server.ts'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].category).toBe('performance');
@@ -57,10 +59,12 @@ describe('BlockingOperationsAnalyzer', () => {
       'src/server.ts': "fs.writeFileSync('file.txt', data);\n",
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/server.ts'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/server.ts'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('high');
@@ -73,10 +77,12 @@ describe('BlockingOperationsAnalyzer', () => {
       'src/server.ts': "if (fs.existsSync('file.txt')) {}\n",
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/server.ts'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/server.ts'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('medium');
@@ -89,10 +95,12 @@ describe('BlockingOperationsAnalyzer', () => {
       'src/server.ts': "const files = fs.readdirSync('dir');\n",
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/server.ts'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/server.ts'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('medium');
@@ -105,27 +113,29 @@ describe('BlockingOperationsAnalyzer', () => {
       'src/server.ts': "await fs.promises.readFile('file.txt');\n",
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: [],
-      files: ['package.json', 'src/server.ts'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: [],
+        files: ['package.json', 'src/server.ts'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(0);
   });
 
   it('is not applicable when project is not a Node.js backend', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/App.tsx': 'export const App = () => <div />;\n',
     });
     const analyzer = new BlockingOperationsAnalyzer();
-    const applicability = analyzer.applicability(projectInfo(root, {
-      frameworks: ['React'],
-      scripts: {},
-      files: ['package.json', 'src/App.tsx'],
-    }) as never);
+    const applicability = analyzer.applicability(
+      projectInfo(root, {
+        frameworks: ['React'],
+        scripts: {},
+        files: ['package.json', 'src/App.tsx'],
+      }) as never,
+    );
 
     expect(applicability).toMatchObject({
       kind: 'not-applicable',

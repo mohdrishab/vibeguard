@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestProject, minimalPackageJson, packageJsonText } from '@vibeguard/testing';
+import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
 import { ReactPerformanceAnalyzer } from './react-performance-analyzer.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -34,16 +34,16 @@ function projectInfo(root: string, overrides: Record<string, unknown> = {}): unk
 describe('ReactPerformanceAnalyzer', () => {
   it('flags missing key in .map() list rendering', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/List.tsx': 'items.map(item => <div>{item}</div>)\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/List.tsx'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/List.tsx'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].category).toBe('performance');
@@ -51,20 +51,38 @@ describe('ReactPerformanceAnalyzer', () => {
     expect(issues[0].title).toBe('Missing key in rendered list');
     expect(issues[0].source).toBe('react-performance');
     expect(issues[0].location.file).toBe('src/List.tsx');
+    expect(issues[0].confidence).toBe('suspected');
+  });
+
+  it('analyzes JavaScript JSX files as well as TypeScript JSX files', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
+      'src/App.jsx': 'items.map(item => <div>{item}</div>)\\n',
+    });
+    const analyzer = new ReactPerformanceAnalyzer();
+    const project = projectInfo(root, {
+      dependencies: ['react'],
+      files: ['package.json', 'src/App.jsx'],
+    });
+
+    expect(analyzer.applicability(project as never).kind).toBe('applicable');
+    const issues = await analyzer.analyze(project as never);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.confidence).toBe('suspected');
   });
 
   it('flags inline function prop in JSX', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/App.tsx': '<Button onClick={() => doSomething()} />\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/App.tsx'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/App.tsx'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('medium');
@@ -73,16 +91,16 @@ describe('ReactPerformanceAnalyzer', () => {
 
   it('flags useEffect with empty dependency array', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/App.tsx': 'useEffect(() => { foo(); }, [])\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/App.tsx'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/App.tsx'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('medium');
@@ -91,16 +109,16 @@ describe('ReactPerformanceAnalyzer', () => {
 
   it('flags direct state mutation', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/App.tsx': 'state.count = 5;\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/App.tsx'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/App.tsx'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('high');
@@ -109,16 +127,16 @@ describe('ReactPerformanceAnalyzer', () => {
 
   it('returns no issues for clean React code', async () => {
     const root = await fixtureProject({
-      'package.json': packageJsonText(
-        minimalPackageJson({ dependencies: { react: '^19.0.0' } }),
-      ),
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { react: '^19.0.0' } })),
       'src/App.tsx': 'export const App = () => <div>hello</div>;\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const issues = await analyzer.analyze(projectInfo(root, {
-      dependencies: ['react'],
-      files: ['package.json', 'src/App.tsx'],
-    }) as never);
+    const issues = await analyzer.analyze(
+      projectInfo(root, {
+        dependencies: ['react'],
+        files: ['package.json', 'src/App.tsx'],
+      }) as never,
+    );
 
     expect(issues).toHaveLength(0);
   });
@@ -129,10 +147,12 @@ describe('ReactPerformanceAnalyzer', () => {
       'src/index.ts': 'export const x = 1;\n',
     });
     const analyzer = new ReactPerformanceAnalyzer();
-    const applicability = analyzer.applicability(projectInfo(root, {
-      frameworks: [],
-      files: ['package.json', 'src/index.ts'],
-    }) as never);
+    const applicability = analyzer.applicability(
+      projectInfo(root, {
+        frameworks: [],
+        files: ['package.json', 'src/index.ts'],
+      }) as never,
+    );
 
     expect(applicability).toMatchObject({
       kind: 'not-applicable',

@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createTestProject } from '@vibeguard/testing';
+import { createTestProject } from '@closed-door/testing';
+import { AnalyzerRegistry } from '@closed-door/analyzers';
 
 import { createProgram } from './program.js';
 import { VIBEGUARD_VERSION } from './version.js';
@@ -16,6 +17,7 @@ function distIndex(): string {
 interface SpawnError extends Error {
   readonly status?: number;
   readonly stderr?: string | Buffer;
+  readonly stdout?: string | Buffer;
 }
 
 describe('createProgram', () => {
@@ -40,7 +42,8 @@ describe('vibeguard cli (end-to-end)', () => {
   it('prints usage information', () => {
     const output = execFileSync('node', [distIndex(), '--help']).toString();
     expect(output).toContain('Usage: vibeguard');
-    expect(output).toContain('auditing and repair');
+    expect(output).toContain('project scanner');
+    expect(output).not.toContain('autonomous codebase auditing and repair');
   });
 
   const disposables: Array<() => Promise<void>> = [];
@@ -107,6 +110,41 @@ describe('vibeguard cli (end-to-end)', () => {
     const spawnError = caught as SpawnError;
     expect(spawnError.status).toBe(1);
     expect(String(spawnError.stderr)).toContain('[CONFIG_EXISTS]');
+  });
+
+  it('returns a non-zero exit status when a scan analyzer fails', async () => {
+    const root = await fixtureProject({
+      'package.json': JSON.stringify({ name: 'js-project' }),
+      'src/index.js': 'export const value = 1;\n',
+    });
+    const registry = new AnalyzerRegistry();
+    registry.register({
+      id: 'failure',
+      name: 'Failure fixture',
+      analyze: async () => {
+        throw new Error('intentional test failure');
+      },
+    });
+
+    const logs: string[] = [];
+    const errors: string[] = [];
+    const previousExitCode = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      const program = createProgram({
+        registry,
+        io: {
+          log: (message) => logs.push(message),
+          error: (message) => errors.push(message),
+        },
+      });
+      await program.parseAsync(['node', 'vibeguard', 'scan', root, '--json'], { from: 'node' });
+
+      expect(process.exitCode).toBe(1);
+      expect(JSON.parse(logs[0] ?? '')).toMatchObject({ ok: false });
+    } finally {
+      process.exitCode = previousExitCode;
+    }
   });
 
   it('rejects explicit directories without package.json', async () => {

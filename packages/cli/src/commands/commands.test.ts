@@ -2,9 +2,11 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { CONFIG_FILE_NAME, defaultConfig, loadConfig, serializeConfig } from '@vibeguard/core';
-import type { VibeGuardError } from '@vibeguard/core';
-import { createTestProject } from '@vibeguard/testing';
+import { CONFIG_FILE_NAME, defaultConfig, loadConfig, serializeConfig } from '@closed-door/core';
+import type { VibeGuardError } from '@closed-door/core';
+import { createTestProject } from '@closed-door/testing';
+import type { Analyzer } from '@closed-door/analyzers';
+import { AnalyzerRegistry } from '@closed-door/analyzers';
 
 import { runConfig } from './config.js';
 import { runInit } from './init.js';
@@ -68,16 +70,55 @@ describe('runScan', () => {
       excludedSensitiveFiles: ['.env.local'],
       findings: [],
       analyzersRun: [
-        { id: 'eslint', name: 'ESLint (bundled recommended)', applicable: true, issues: 0 },
-        { id: 'tsc', name: 'TypeScript Compiler', applicable: true, issues: 0 },
-        { id: 'secret-scanner', name: 'Secret Scanner', applicable: true, issues: 0 },
-        { id: 'dependency-audit', name: 'Dependency Audit', applicable: true, issues: 0 },
-        { id: 'bundle-analyzer', name: 'Bundle Analyzer', applicable: true, issues: 0 },
-        { id: 'react-performance', name: 'React Performance Analyzer', applicable: true, issues: 0 },
-        { id: 'blocking-operations', name: 'Blocking Operations Analyzer', applicable: false, inapplicableReason: 'Project does not appear to be a Node.js backend.', issues: 0 },
+        {
+          id: 'eslint',
+          name: 'ESLint (bundled recommended)',
+          applicable: true,
+          status: 'passed',
+          issues: 0,
+        },
+        { id: 'tsc', name: 'TypeScript Compiler', applicable: true, status: 'passed', issues: 0 },
+        {
+          id: 'secret-scanner',
+          name: 'Secret Scanner',
+          applicable: true,
+          status: 'passed',
+          issues: 0,
+        },
+        {
+          id: 'dependency-audit',
+          name: 'Dependency Audit',
+          applicable: false,
+          status: 'skipped',
+          inapplicableReason: 'No package-lock.json lockfile; dependency audit was not run.',
+          issues: 0,
+        },
+        {
+          id: 'bundle-analyzer',
+          name: 'Bundle Analyzer',
+          applicable: true,
+          status: 'passed',
+          issues: 0,
+        },
+        {
+          id: 'react-performance',
+          name: 'React Performance Analyzer',
+          applicable: true,
+          status: 'passed',
+          issues: 0,
+        },
+        {
+          id: 'blocking-operations',
+          name: 'Blocking Operations Analyzer',
+          applicable: false,
+          status: 'skipped',
+          inapplicableReason: 'Project does not appear to be a Node.js backend.',
+          issues: 0,
+        },
       ],
     });
     expect(result.project.name).toBe('json-project');
+    expect(result.ok).toBe(true);
   });
 
   it('reports engine-level findings in human output', async () => {
@@ -109,10 +150,50 @@ describe('runScan', () => {
     expect(result.analyzersRun).toHaveLength(7);
     for (const summary of result.analyzersRun) {
       expect(summary.applicable).toBe(false);
+      expect(summary.status).toBe('skipped');
       expect(summary.inapplicableReason).toBeTruthy();
       expect(summary.issues).toBe(0);
     }
     expect(JSON.parse(logs[0] ?? '')['findings']).toEqual([]);
+  });
+
+  it('reports analyzer failures in JSON and marks the scan incomplete', async () => {
+    const root = await fixtureProject({
+      'package.json': JSON.stringify({
+        name: 'audit-failure-project',
+        dependencies: { react: '^19' },
+      }),
+      'package-lock.json': '{}',
+      'src/index.js': 'export const app = true;\n',
+    });
+    const { io, logs } = fakeIo();
+
+    const registry = new AnalyzerRegistry();
+    const failingAnalyzer: Analyzer = {
+      id: 'deliberate-failure',
+      name: 'Deliberate failure',
+      analyze: async () => {
+        throw new Error('fixture analyzer failure');
+      },
+    };
+    registry.register(failingAnalyzer);
+
+    const result = await runScan(io, { root, json: true, registry });
+    const output = JSON.parse(logs[0] ?? '') as {
+      ok: boolean;
+      analyzersRun: Array<{ id: string; status: string; error?: string }>;
+    };
+
+    expect(result.ok).toBe(false);
+    expect(output.ok).toBe(false);
+    expect(output.analyzersRun).toContainEqual({
+      id: 'deliberate-failure',
+      name: 'Deliberate failure',
+      applicable: true,
+      status: 'failed',
+      error: 'fixture analyzer failure',
+      issues: 0,
+    });
   });
 
   it('fails loudly on an invalid config', async () => {

@@ -8,7 +8,7 @@ Thanks for contributing! VibeGuard is an open-source, production-oriented develo
 - **Tests required.** Every feature ships with unit tests (Vitest). Bug fixes ship with a regression test that fails without the fix.
 - **No placeholders.** No fake scan results, mocked implementations in production code, TODO-only functions, or hardcoded API keys.
 - **Evidence over claims.** Do not report speculative findings as confirmed bugs; every emitted issue carries evidence. Do not claim a feature works without executing its tests.
-- **Modularity.** Small, focused modules with interfaces at package boundaries. Cross-package code goes through `@vibeguard/core` contracts.
+- **Modularity.** Small, focused modules with interfaces at package boundaries. Cross-package code goes through `@closed-door/core` contracts.
 - **Secrets.** API keys live in environment variables only. Never log, echo, store, or transmit secrets — reports must never contain secret values.
 - **User data safety.** Never overwrite uncommitted user changes; never silently delete user files.
 

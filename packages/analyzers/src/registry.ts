@@ -1,4 +1,4 @@
-import type { Issue, ProjectInfo } from '@vibeguard/core';
+import type { Issue, ProjectInfo } from '@closed-door/core';
 
 import type { Analyzer, AnalyzerRunDetail } from './analyzer.js';
 
@@ -57,18 +57,32 @@ export class AnalyzerRegistry {
             id: analyzer.id,
             name: analyzer.name,
             applicable: false,
+            status: 'skipped' as const,
             inapplicableReason: applicability.reason,
             issues: [],
           };
         }
-        const issues = await analyzer.analyze(project);
-        return {
-          id: analyzer.id,
-          name: analyzer.name,
-          applicable: true,
-          inapplicableReason: '',
-          issues,
-        };
+        try {
+          const issues = await analyzer.analyze(project);
+          return {
+            id: analyzer.id,
+            name: analyzer.name,
+            applicable: true,
+            status: 'passed' as const,
+            inapplicableReason: '',
+            issues,
+          };
+        } catch (error: unknown) {
+          return {
+            id: analyzer.id,
+            name: analyzer.name,
+            applicable: true,
+            status: 'failed' as const,
+            inapplicableReason: '',
+            error: error instanceof Error ? error.message : String(error),
+            issues: [],
+          };
+        }
       }),
     );
     return details;

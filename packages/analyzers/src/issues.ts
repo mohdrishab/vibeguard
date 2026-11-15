@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Issue, IssueEvidence, Severity } from '@vibeguard/core';
-import { compareSeverity, isLintableFile, toPosix } from '@vibeguard/core';
+import type { Issue, IssueEvidence, Severity } from '@closed-door/core';
+import { compareSeverity, isLintableFile, toPosix } from '@closed-door/core';
 
 /**
  * Deterministic content-derived issue identifiers for Phase 2. Stable
@@ -94,6 +94,7 @@ export function lintableFiles(files: readonly string[]): readonly string[] {
 export interface IssueDraft {
   readonly category: Issue['category'];
   readonly severity: Severity;
+  readonly confidence?: Issue['confidence'];
   readonly title: string;
   readonly description: string;
   readonly file: string;
@@ -119,9 +120,8 @@ export function buildIssue(draft: IssueDraft): Issue {
     ]),
     category: draft.category,
     severity: draft.severity,
-    // Static-engine findings are backed by a real failing check; 'suspected'
-    // is reserved for the heuristic engines later phases add.
-    confidence: 'confirmed',
+    // Heuristic engines opt into 'suspected'; deterministic engines default to confirmed.
+    confidence: draft.confidence ?? 'confirmed',
     title: draft.title,
     description: draft.description,
     location: {

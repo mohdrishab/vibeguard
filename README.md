@@ -1,12 +1,12 @@
 # VibeGuard
 
-**AI-powered autonomous codebase auditing and repair CLI for JavaScript and TypeScript projects.**
+**Local-first JavaScript and TypeScript project scanner with deterministic checks and evidence-backed findings.**
 
-VibeGuard helps developers — especially vibe coders shipping fast — find, diagnose, prioritize, and automatically fix bugs, security vulnerabilities, performance bottlenecks, inefficient code, and architectural problems in their projects.
+VibeGuard currently provides project detection and a read-only scan using ESLint, the TypeScript compiler, a secret-pattern scanner, dependency audit, and heuristic React/Node performance checks. It does **not** currently diagnose or repair issues with AI.
 
-Core workflow: **Scan → Detect → Diagnose → Prioritize → Fix → Test → Verify → Report**
+Current workflow: **Inspect → Analyze → Prioritize → Report in the terminal or JSON**
 
-> **Status: Phase 1 (CLI + project intelligence) complete.** `init`, `scan`, `config` are live and detect real project stacks. Static analyzers, AI diagnosis, and repair arrive in later phases — see [Roadmap](#roadmap).
+> **Status: early prototype.** `init`, `scan`, and `config` are implemented. AI diagnosis, repair, verification, and report-file generation are not implemented yet — see [Roadmap](#roadmap).
 
 ## Usage
 
@@ -18,7 +18,7 @@ Detects the project stack, indexes files, and writes a starter `.vibeguardrc.jso
 
 ### `vibeguard scan [dir] [--json]`
 
-Project intelligence today: languages, frameworks, package manager, entry points, config inventory, file index (sensitive files are skipped, never read), plus applied excludes from `.vibeguardrc.json`. Findings are an honest `[]` until the static analyzers land in Phase 2.
+Detects project languages/frameworks/package manager, indexes eligible files, and runs the bundled analyzers. JSON output includes findings and per-analyzer `passed`, `failed`, or `skipped` status; the command exits non-zero if an applicable analyzer fails. Findings are deduplicated only when rule, title, and precise location match.
 
 ### `vibeguard config [dir] [--json]`
 
@@ -43,25 +43,27 @@ Shows the resolved configuration — the file's contents when `.vibeguardrc.json
 - **Sensitive files are never indexed or read.** `.env*`, private keys (`id_rsa`, `*.pem`, `*.key`, `*.pfx`, …), `.npmrc`, cloud credential files, and `*.tfvars` are skipped and reported by name only. Their contents never reach AI providers.
 - **Errors are structured.** Failures print `[CODE] message` with codes like `NO_PROJECT`, `INVALID_PACKAGE_JSON`, `INVALID_CONFIG`, `CONFIG_EXISTS`, and exit `1`.
 
-## Features (planned)
+## Current scan checks
 
-- **Deterministic static analysis** — ESLint + the TypeScript Compiler API catch real bugs with evidence, never speculation.
-- **Security auditing** — Semgrep and `npm audit` integration plus VibeGuard's own secret/injection scanners.
-- **Performance analysis** — bundle analysis, blocking-operation detection, Lighthouse CI for web apps.
-- **Unified issue engine** — every finding gets a stable ID, severity, confidence score, evidence, and fixability rating.
-- **AI-powered diagnosis** — optional reasoning layer over OpenAI, Gemini, DeepSeek, or a local Ollama model. Scanning always works without any API key.
-- **Autonomous repair** — recovery points, unified diffs, isolated verification (tests, lint, typecheck, build), and rollback on failure. Security-sensitive fixes always require human approval.
+- **ESLint** — bundled recommended JavaScript and TypeScript rules; does not load the project's ESLint config.
+- **TypeScript** — compiler diagnostics using the project `tsconfig.json` when available; never emits build files.
+- **Secrets** — pattern checks for common tokens and credentials in indexed JavaScript/TypeScript source. Matches are marked `suspected`; all matched values on each evidence line are redacted.
+- **Dependencies** — npm or pnpm audit when dependencies are present and the matching lockfile is indexed. Audit findings may require registry/network access; failed checks are reported as failed, not as zero vulnerabilities.
+- **React / Node heuristics** — regex-based checks for selected JSX and blocking-operation patterns. These findings are marked `suspected`; they are not AST or runtime performance measurements.
+- **Bundle heuristics** — selected large-dependency and asset-import hints, also marked `suspected`.
+
+`scan` is read-only. VibeGuard does not yet provide fix, verify, AI diagnosis, prompt generation, or report-file commands. JSON output is available with `--json`.
 
 ## Repository structure
 
 ```
 packages/
-  cli/          Commander-based CLI entry point (@vibeguard/cli → `vibeguard`)
-  core/         Shared types and contracts (@vibeguard/core)
-  analyzers/    Deterministic static-analysis engines (@vibeguard/analyzers)
-  ai/           Provider-independent AI reasoning (@vibeguard/ai)
-  repair/       Autonomous patch engine (@vibeguard/repair)
-  reports/      HTML / JSON / Markdown report generation (@vibeguard/reports)
+  cli/          Commander-based CLI entry point (@closed-door/cli → `vibeguard`)
+  core/         Shared types and project intelligence (@closed-door/core)
+  analyzers/    ESLint, TypeScript, security, and heuristic checks (@closed-door/analyzers)
+  ai/           Provider key resolution only; AI diagnosis is not implemented
+  repair/       Safety classification only; patch application is not implemented
+  reports/      Report format definitions only; report generation is not implemented
 ```
 
 ## Requirements
@@ -99,16 +101,16 @@ PRs must come from a feature branch and pass CI (lint, typecheck build, tests). 
 
 ## Roadmap
 
-| Phase | Scope                                                     | Status  |
-| ----- | --------------------------------------------------------- | ------- |
-| 0     | Monorepo foundation (TS, ESLint, Vitest, CI)              | ✅ Done |
-| 1     | CLI, project intelligence, `.vibeguardrc.json`            | ✅ Done |
-| 2     | Static analysis & bug detection (ESLint, TSC API)         | 🔜 Next |
-| 3     | Security & dependency auditing                            | Planned |
-| 4     | Performance analysis                                      | Planned |
-| 5     | Unified issue engine                                      | Planned |
-| 6     | AI reasoning engine (OpenAI / Gemini / DeepSeek / Ollama) | Planned |
-| 7     | Autonomous repair engine                                  | Planned |
-| 8     | Prompt generator for external AI agents                   | Planned |
-| 9     | Verification & reporting                                  | Planned |
-| 10    | Integration, optimization, npm release                    | Planned |
+| Phase | Scope                                                     | Status                                   |
+| ----- | --------------------------------------------------------- | ---------------------------------------- |
+| 0     | Monorepo foundation (TS, ESLint, Vitest, CI)              | ✅ Done                                  |
+| 1     | CLI, project intelligence, `.vibeguardrc.json`            | ✅ Done                                  |
+| 2     | Static analysis & bug detection (ESLint, TSC API)         | ✅ Prototype implemented                 |
+| 3     | Security & dependency auditing                            | ✅ Prototype implemented                 |
+| 4     | Performance analysis                                      | ⚠️ Heuristic prototype only              |
+| 5     | Unified issue engine                                      | ⚠️ Basic exact deduplication implemented |
+| 6     | AI reasoning engine (OpenAI / Gemini / DeepSeek / Ollama) | Not implemented                          |
+| 7     | Autonomous repair engine                                  | Not implemented                          |
+| 8     | Prompt generator for external AI agents                   | Not implemented                          |
+| 9     | Verification & report-file generation                     | Not implemented                          |
+| 10    | Integration, optimization, npm release                    | Planned                                  |

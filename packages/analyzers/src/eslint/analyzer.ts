@@ -1,8 +1,8 @@
 import { ESLint } from 'eslint';
 import type { Linter } from 'eslint';
 
-import { isTypeScriptFile } from '@vibeguard/core';
-import type { Issue, IssueCategory, IssueEvidence, ProjectInfo, Severity } from '@vibeguard/core';
+import { isTypeScriptFile } from '@closed-door/core';
+import type { Issue, IssueCategory, IssueEvidence, ProjectInfo, Severity } from '@closed-door/core';
 
 import type { Analyzer } from '../analyzer.js';
 import {

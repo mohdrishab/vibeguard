@@ -1,5 +1,5 @@
 {
-  "name": "@vibeguard/core",
+  "name": "@closed-door/core",
   "version": "0.1.0",
   "description": "Shared types, contracts, and utilities for VibeGuard",
   "license": "Apache-2.0",
@@ -22,7 +22,7 @@
     "build": "tsc -b"
   },
   "devDependencies": {
-    "@vibeguard/testing": "workspace:*"
+    "@closed-door/testing": "workspace:*"
   },
   "dependencies": {
     "fast-glob": "^3.3.3",

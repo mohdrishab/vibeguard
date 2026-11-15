@@ -83,12 +83,11 @@ describe('deduplicateIssues', () => {
     ];
 
     const result = deduplicateIssues(issues);
-    // Should merge into 1 issue (highest severity = high, combined evidence)
+    // Exact duplicate rule findings collapse to one stable issue.
     expect(result).toHaveLength(1);
-    expect(result[0].severity).toBe('high'); // highest of high/medium
-    expect(result[0].title).toBe('Missing key in rendered list');
-    // Evidence should be combined
-    expect(result[0].evidence.length).toBeGreaterThan(0);
+    expect(result[0]?.severity).toBe('high');
+    expect(result[0]?.title).toBe('Missing key in rendered list');
+    expect(result[0]?.evidence).toHaveLength(1);
   });
 
   it('handles issues from different analyzers at same location with different titles', () => {
@@ -144,12 +143,54 @@ describe('deduplicateIssues', () => {
     ];
 
     const result = deduplicateIssues(issues);
-    // Should merge into 1 issue at same location
+    // Different rules at the same location are distinct findings.
+    expect(result).toHaveLength(2);
+    expect(result.map((issue) => issue.title)).toEqual([
+      'Blocking synchronous file read',
+      'Expensive loop in request handler',
+    ]);
+  });
+
+  it('deduplicates only findings with the same rule and location', () => {
+    const issues = [
+      {
+        id: 'vg-first',
+        category: 'performance' as const,
+        severity: 'medium' as const,
+        confidence: 'suspected' as const,
+        title: 'Potential issue',
+        description: 'First analyzer description',
+        location: { file: 'src/app.ts', startLine: 5, endLine: 5 },
+        evidence: [{ ruleId: 'same-rule', snippet: 'same code' }],
+        recommendation: 'Review it',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'first-analyzer',
+      },
+      {
+        id: 'vg-second',
+        category: 'performance' as const,
+        severity: 'high' as const,
+        confidence: 'confirmed' as const,
+        title: 'Potential issue',
+        description: 'Duplicate finding',
+        location: { file: 'src/app.ts', startLine: 5, endLine: 5 },
+        evidence: [{ ruleId: 'same-rule', snippet: 'same code' }],
+        recommendation: 'Review it',
+        fixability: 'manual-only' as const,
+        status: 'open' as const,
+        source: 'second-analyzer',
+      },
+    ];
+
+    const result = deduplicateIssues(issues);
+
     expect(result).toHaveLength(1);
-    // Should have highest severity (high > medium)
-    expect(result[0].severity).toBe('high');
-    // Title should be combined
-    expect(result[0].title).toBe('Blocking synchronous file read & similar issue');
+    expect(result[0]?.severity).toBe('high');
+    expect(result[0]?.confidence).toBe('suspected');
+    expect(result[0]?.evidence).toHaveLength(1);
+    expect(result[0]?.source).toContain('first-analyzer');
+    expect(result[0]?.source).toContain('second-analyzer');
   });
 
   it('handles issues at different locations kept separate', () => {
@@ -193,7 +234,7 @@ describe('deduplicateIssues', () => {
     ];
 
     const result = deduplicateIssues(issues);
-    // Should keep both issues separate (different locations)
+    // Findings at different locations remain separate.
     expect(result).toHaveLength(2);
   });
 });

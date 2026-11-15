@@ -1,4 +1,4 @@
-import type { Fixability, IssueCategory, Severity } from '@vibeguard/core';
+import type { Fixability, IssueCategory, Severity } from '@closed-door/core';
 
 /**
  * Explicit rule metadata for the checks worth calling out. Everything

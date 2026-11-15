@@ -1,8 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { isTypeScriptFile } from '@vibeguard/core';
-import type { Issue, ProjectInfo, Severity } from '@vibeguard/core';
+import type { Issue, ProjectInfo, Severity } from '@closed-door/core';
 
 import type { Analyzer } from '../analyzer.js';
 import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
@@ -64,8 +63,7 @@ const BLOCKING_PATTERNS: readonly BlockingPattern[] = Object.freeze([
     description:
       'fs.readdirSync blocks the event loop while reading a directory. ' +
       'Large directories can cause noticeable event-loop latency.',
-    recommendation:
-      'Use fs.readdir or fs.promises.readdir instead, and await the result.',
+    recommendation: 'Use fs.readdir or fs.promises.readdir instead, and await the result.',
     fixability: 'manual-only',
   },
   {
@@ -101,7 +99,8 @@ export class BlockingOperationsAnalyzer implements Analyzer {
   public applicability(
     project: ProjectInfo,
   ): { kind: 'applicable' } | { kind: 'not-applicable'; reason: string } {
-    const usesNode = project.frameworks.includes('Node.js') ||
+    const usesNode =
+      project.frameworks.includes('Node.js') ||
       Object.values(project.scripts).some((cmd) => /\bnode\b/u.test(cmd));
     if (!usesNode) {
       return {
@@ -113,9 +112,7 @@ export class BlockingOperationsAnalyzer implements Analyzer {
   }
 
   public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
-    const files = lintableFiles(project.files).filter((file) =>
-      isTypeScriptFile(file),
-    );
+    const files = lintableFiles(project.files);
     const issues: Issue[] = [];
 
     for (const file of files) {
@@ -151,6 +148,7 @@ export class BlockingOperationsAnalyzer implements Analyzer {
             buildIssue({
               category: 'performance',
               severity: pattern.severity,
+              confidence: 'suspected',
               title: pattern.title,
               description: pattern.description,
               file,
@@ -159,11 +157,7 @@ export class BlockingOperationsAnalyzer implements Analyzer {
               recommendation: pattern.recommendation,
               fixability: pattern.fixability,
               source: BLOCKING_ID,
-              evidence: makeEvidence(
-                pattern.kind,
-                line.trim(),
-                { kind: pattern.kind },
-              ),
+              evidence: makeEvidence(pattern.kind, line.trim(), { kind: pattern.kind }),
             }),
           );
         }
