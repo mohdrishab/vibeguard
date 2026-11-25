@@ -1,10 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
 import type { Issue, IssueCategory, ProjectInfo, Severity } from '@closed-door/core';
 
-import type { Analyzer } from '../analyzer.js';
-import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
+import type { Analyzer, AnalyzerContext } from '../analyzer.js';
+import { buildIssue, lintableFiles, makeEvidence, readProjectSource } from '../issues.js';
 
 const SECRET_ID = 'secret-scanner';
 const SECRET_NAME = 'Secret Scanner';
@@ -116,23 +113,25 @@ export class SecretScanner implements Analyzer {
     return { kind: 'applicable' };
   }
 
-  public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
+  public async analyze(project: ProjectInfo, context?: AnalyzerContext): Promise<readonly Issue[]> {
     const files = lintableFiles(project.files);
     const issues: Issue[] = [];
 
     for (const file of files) {
-      const fileIssues = await this.scanFile(project, file);
+      const fileIssues = await this.scanFile(project, file, context);
       issues.push(...fileIssues);
     }
 
     return issues;
   }
 
-  private async scanFile(project: ProjectInfo, file: string): Promise<Issue[]> {
-    let content: string;
-    try {
-      content = await readFile(path.join(project.root, ...file.split('/')), 'utf8');
-    } catch {
+  private async scanFile(
+    project: ProjectInfo,
+    file: string,
+    context?: AnalyzerContext,
+  ): Promise<Issue[]> {
+    const content = await readProjectSource(project.root, file, context?.files);
+    if (content === undefined) {
       return [];
     }
 

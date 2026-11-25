@@ -1,7 +1,8 @@
 import type { Issue, ProjectInfo } from '@closed-door/core';
 import { describe, expect, it } from 'vitest';
 
-import type { Analyzer } from './analyzer.js';
+import type { Analyzer, AnalyzerContext } from './analyzer.js';
+import type { FileCache } from './file-cache.js';
 import { AnalyzerRegistry } from './registry.js';
 
 const stubProject = {
@@ -134,6 +135,64 @@ describe('AnalyzerRegistry', () => {
 
       expect(details.map((detail) => detail.id)).toEqual(['eslint', 'tsc']);
       expect(details.every((detail) => detail.applicable)).toBe(true);
+    });
+
+    it('shares one file cache across every applicable analyzer', async () => {
+      const seen = new Set<FileCache>();
+      const capturing = (id: string): Analyzer => ({
+        id,
+        name: `Analyzer ${id}`,
+        analyze: async (_project: ProjectInfo, context?: AnalyzerContext) => {
+          expect(context).toBeDefined();
+          seen.add(context!.files);
+          return [];
+        },
+      });
+      const registry = new AnalyzerRegistry();
+      registry.register(capturing('eslint'));
+      registry.register(capturing('tsc'));
+
+      await registry.runAllDetailed(stubProject);
+
+      expect(seen.size).toBe(1);
+    });
+
+    it('does not create a cache for analyzers that are skipped', async () => {
+      let receivedContext: AnalyzerContext | undefined;
+      const registry = new AnalyzerRegistry();
+      registry.register({
+        id: 'tsc',
+        name: 'TypeScript Compiler',
+        analyze: async (_project, context) => {
+          receivedContext = context;
+          return [];
+        },
+        applicability: () => ({ kind: 'not-applicable', reason: 'No TypeScript sources.' }),
+      });
+
+      await registry.runAllDetailed(stubProject);
+
+      expect(receivedContext).toBeUndefined();
+    });
+  });
+
+  describe('runAll', () => {
+    it('passes one shared context to every analyzer', async () => {
+      const seen = new Set<FileCache>();
+      const capturing = (id: string): Analyzer => ({
+        id,
+        name: `Analyzer ${id}`,
+        analyze: async (_project: ProjectInfo, context?: AnalyzerContext) => {
+          seen.add(context!.files);
+          return [];
+        },
+      });
+      const registry = new AnalyzerRegistry();
+      registry.register(capturing('eslint'));
+      registry.register(capturing('bundle'));
+
+      await expect(registry.runAll(stubProject)).resolves.toEqual([]);
+      expect(seen.size).toBe(1);
     });
   });
 });

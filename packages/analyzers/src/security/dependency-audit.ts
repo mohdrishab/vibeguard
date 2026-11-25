@@ -10,6 +10,59 @@ const execFileAsync = promisify(execFile);
 
 const DEP_AUDIT_ID = 'dependency-audit';
 const DEP_AUDIT_NAME = 'Dependency Audit';
+const AUDIT_TIMEOUT_MS = 15_000;
+
+type AuditablePackageManager = 'npm' | 'pnpm';
+
+export interface AuditCommand {
+  /** Executable to launch. */
+  readonly file: string;
+  /** Fixed argument list; never contains user-supplied text. */
+  readonly args: readonly string[];
+}
+
+const POSIX_AUDIT_COMMANDS: Readonly<Record<AuditablePackageManager, AuditCommand>> = Object.freeze(
+  {
+    npm: Object.freeze({ file: 'npm', args: Object.freeze(['audit', '--json']) }),
+    pnpm: Object.freeze({ file: 'pnpm', args: Object.freeze(['audit', '--json']) }),
+  },
+);
+
+/**
+ * Builds the audit invocation for the current platform.
+ *
+ * On Windows, npm and pnpm are `.cmd` shims that `execFile` cannot launch
+ * directly, so the command is routed through `cmd.exe` with `/d /s /c`.
+ * The shell string is fixed and allowlisted per package manager — no
+ * project-controlled value is ever interpolated into it.
+ */
+export function buildAuditCommand(
+  packageManager: AuditablePackageManager,
+  platform: NodeJS.Platform = process.platform,
+): AuditCommand {
+  const posix = POSIX_AUDIT_COMMANDS[packageManager];
+  if (posix === undefined) {
+    throw new Error(`No dependency audit command is defined for ${String(packageManager)}.`);
+  }
+  if (platform !== 'win32') {
+    return posix;
+  }
+  return Object.freeze({
+    file: 'cmd.exe',
+    args: Object.freeze(['/d', '/s', '/c', `${packageManager}.cmd audit --json`]),
+  });
+}
+
+function describeAuditFailure(error: unknown, packageManager: AuditablePackageManager): string {
+  const record = isRecord(error) ? error : {};
+  if (record['code'] === 'ENOENT') {
+    return `the ${packageManager} executable was not found on PATH`;
+  }
+  if (record['code'] === 'ETIMEDOUT' || record['killed'] === true) {
+    return `the command timed out after ${AUDIT_TIMEOUT_MS / 1000} seconds`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 export interface AuditVulnerability {
   readonly id: string;
@@ -85,6 +138,13 @@ function parseAuditReport(stdout: string): AuditReport {
 export class DependencyAudit implements Analyzer {
   public readonly id = DEP_AUDIT_ID;
   public readonly name = DEP_AUDIT_NAME;
+
+  readonly #platform: NodeJS.Platform;
+
+  /** @param platform Injectable for deterministic Windows-path tests. */
+  constructor(platform: NodeJS.Platform = process.platform) {
+    this.#platform = platform;
+  }
 
   public applicability(
     project: ProjectInfo,
@@ -195,10 +255,13 @@ export class DependencyAudit implements Analyzer {
 
     let stdout: string;
     try {
-      const result = await execFileAsync(packageManager, ['audit', '--json'], {
+      const command = buildAuditCommand(packageManager, this.#platform);
+      const result = await execFileAsync(command.file, [...command.args], {
         cwd: root,
         encoding: 'utf8',
-        timeout: 15_000,
+        timeout: AUDIT_TIMEOUT_MS,
+        // Keep audit execution invisible when the CLI runs on Windows.
+        windowsHide: true,
       });
       stdout = typeof result === 'string' ? result : result.stdout;
     } catch (error: unknown) {
@@ -206,10 +269,11 @@ export class DependencyAudit implements Analyzer {
       // provide a usable JSON report on stdout.
       const output = (error as { stdout?: unknown }).stdout;
       if (typeof output !== 'string' || output.trim() === '') {
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`Dependency audit command failed (${packageManager} audit): ${reason}`, {
-          cause: error,
-        });
+        throw new Error(
+          `Dependency audit command failed (${packageManager} audit): ` +
+            describeAuditFailure(error, packageManager),
+          { cause: error },
+        );
       }
       stdout = output;
     }

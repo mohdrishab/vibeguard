@@ -5,7 +5,7 @@ import { isTypeScriptFile } from '@closed-door/core';
 import type { Issue, ProjectInfo, Severity } from '@closed-door/core';
 import * as ts from 'typescript';
 
-import type { Analyzer } from '../analyzer.js';
+import type { Analyzer, AnalyzerContext } from '../analyzer.js';
 import { buildIssue, captureSnippet, relativePosix } from '../issues.js';
 
 const TSC_ID = 'tsc';
@@ -46,7 +46,7 @@ export class TsCompilerAnalyzer implements Analyzer {
     return { kind: 'applicable' };
   }
 
-  public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
+  public async analyze(project: ProjectInfo, context?: AnalyzerContext): Promise<readonly Issue[]> {
     const tsFiles = project.files.filter((file) => isTypeScriptFile(file)).sort();
     if (tsFiles.length === 0) {
       return [];
@@ -61,7 +61,7 @@ export class TsCompilerAnalyzer implements Analyzer {
 
     const issues: Issue[] = [];
     for (const diagnostic of diagnostics) {
-      const issue = await this.toIssue(project, diagnostic);
+      const issue = await this.toIssue(project, diagnostic, context);
       if (issue !== undefined) {
         issues.push(issue);
       }
@@ -84,6 +84,7 @@ export class TsCompilerAnalyzer implements Analyzer {
   private async toIssue(
     project: ProjectInfo,
     diagnostic: ts.Diagnostic,
+    context?: AnalyzerContext,
   ): Promise<Issue | undefined> {
     const relativeFile = diagnostic.file
       ? relativePosix(project.root, diagnostic.file.fileName)
@@ -135,7 +136,14 @@ export class TsCompilerAnalyzer implements Analyzer {
         {
           ruleId: `TS${diagnostic.code}`,
           ...(diagnostic.file !== undefined
-            ? { snippet: await captureSnippet(project.root, relativeFile, startLine + 1) }
+            ? {
+                snippet: await captureSnippet(
+                  project.root,
+                  relativeFile,
+                  startLine + 1,
+                  context?.files,
+                ),
+              }
             : {}),
         },
       ],

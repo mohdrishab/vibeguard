@@ -1,5 +1,17 @@
 import type { Issue, ProjectInfo } from '@closed-door/core';
 
+import type { FileCache } from './file-cache.js';
+
+/**
+ * Per-scan services shared by analyzers. The registry creates one context
+ * for a scan so independent engines reuse the same file contents instead
+ * of reading the same source repeatedly.
+ */
+export interface AnalyzerContext {
+  /** Shared UTF-8 file cache; missing or unreadable files resolve to `undefined`. */
+  readonly files: FileCache;
+}
+
 /**
  * A deterministic analyzer inspects a scanned project and returns issues
  * backed by concrete evidence. Implementations must never fabricate
@@ -10,8 +22,12 @@ export interface Analyzer {
   readonly id: string;
   /** Human-readable name shown in reports. */
   readonly name: string;
-  /** Runs the analyzer against the project. */
-  analyze(project: ProjectInfo): Promise<readonly Issue[]>;
+  /**
+   * Runs the analyzer against the project. The optional context carries
+   * per-scan shared services; when absent, an analyzer must behave exactly
+   * as before (direct reads, no cross-analyzer cache).
+   */
+  analyze(project: ProjectInfo, context?: AnalyzerContext): Promise<readonly Issue[]>;
   /**
    * Declares whether this engine is meaningful for the given project
    * (e.g. the TypeScript compiler only applies to TS sources). Optional:

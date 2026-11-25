@@ -1,5 +1,7 @@
-export type { Analyzer, AnalyzerRunDetail } from './analyzer.js';
+export type { Analyzer, AnalyzerContext, AnalyzerRunDetail } from './analyzer.js';
 export { createDefaultRegistry } from './default.js';
+export { FileCache } from './file-cache.js';
+export type { FileCacheStats, FileReader } from './file-cache.js';
 export { EslintAnalyzer } from './eslint/analyzer.js';
 export { TsCompilerAnalyzer } from './tsc/analyzer.js';
 export { SecretScanner } from './security/secret-scanner.js';

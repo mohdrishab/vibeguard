@@ -5,6 +5,8 @@ import path from 'node:path';
 import type { Issue, IssueEvidence, Severity } from '@closed-door/core';
 import { compareSeverity, isLintableFile, toPosix } from '@closed-door/core';
 
+import type { FileCache } from './file-cache.js';
+
 /**
  * Deterministic content-derived issue identifiers for Phase 2. Stable
  * across scans of unchanged code; the unified issue engine (Phase 5) may
@@ -38,26 +40,57 @@ export function sortIssues(issues: readonly Issue[]): readonly Issue[] {
   });
 }
 
-/** Source line for evidence, capped. Only file-index (non-sensitive) files are read. */
+/**
+ * Reads a source file relative to the project root, honoring the per-scan
+ * cache when one was supplied. Returns `undefined` for missing or
+ * unreadable files; analyzer reads must never fail a scan.
+ */
+export async function readProjectSource(
+  root: string,
+  relativeFile: string,
+  cache?: FileCache,
+): Promise<string | undefined> {
+  const absolute = path.join(root, ...relativeFile.split('/'));
+  if (cache !== undefined) {
+    return cache.readText(absolute);
+  }
+  try {
+    return await readFile(absolute, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Source line for evidence, capped. Only file-index (non-sensitive) files
+ * are read. When a shared cache is provided the file is read and split at
+ * most once per scan, regardless of how many findings point at it.
+ */
 export async function captureSnippet(
   root: string,
   relativeFile: string,
   line: number,
+  cache?: FileCache,
 ): Promise<string | undefined> {
-  try {
-    const absolute = path.join(root, ...relativeFile.split('/'));
-    const content = await readFile(absolute, 'utf8');
-    const lineText = content.split(/\r?\n/u)[line - 1] ?? '';
-    const trimmed = lineText.trim();
-    if (trimmed === '') {
+  const absolute = path.join(root, ...relativeFile.split('/'));
+  let lineText: string | undefined;
+
+  if (cache !== undefined) {
+    const lines = await cache.readLines(absolute);
+    lineText = lines?.[line - 1];
+  } else {
+    const content = await readProjectSource(root, relativeFile);
+    if (content === undefined) {
       return undefined;
     }
-    return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
-  } catch {
-    // A missing/unreadable file must never fail a scan — evidence is
-    // best-effort, findings are based on engine reports only.
+    lineText = content.split(/\r?\n/u)[line - 1];
+  }
+
+  const trimmed = (lineText ?? '').trim();
+  if (trimmed === '') {
     return undefined;
   }
+  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
 }
 
 export function makeEvidence(

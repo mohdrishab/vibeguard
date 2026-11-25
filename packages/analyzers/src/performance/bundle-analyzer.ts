@@ -1,10 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
 import type { Issue, ProjectInfo } from '@closed-door/core';
 
-import type { Analyzer } from '../analyzer.js';
-import { buildIssue, lintableFiles, makeEvidence } from '../issues.js';
+import type { Analyzer, AnalyzerContext } from '../analyzer.js';
+import { buildIssue, lintableFiles, makeEvidence, readProjectSource } from '../issues.js';
 
 const BUNDLE_ID = 'bundle-analyzer';
 const BUNDLE_NAME = 'Bundle Analyzer';
@@ -60,7 +57,7 @@ export class BundleAnalyzer implements Analyzer {
     return { kind: 'applicable' };
   }
 
-  public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
+  public async analyze(project: ProjectInfo, context?: AnalyzerContext): Promise<readonly Issue[]> {
     const issues: Issue[] = [];
 
     // Flag heavy dependencies declared in the manifest (suspected, not confirmed).
@@ -94,18 +91,20 @@ export class BundleAnalyzer implements Analyzer {
     // Flag large asset files referenced in source (suspected).
     const files = lintableFiles(project.files);
     for (const file of files) {
-      const assetIssues = await this.scanForLargeAssets(project, file);
+      const assetIssues = await this.scanForLargeAssets(project, file, context);
       issues.push(...assetIssues);
     }
 
     return issues;
   }
 
-  private async scanForLargeAssets(project: ProjectInfo, file: string): Promise<Issue[]> {
-    let content: string;
-    try {
-      content = await readFile(path.join(project.root, ...file.split('/')), 'utf8');
-    } catch {
+  private async scanForLargeAssets(
+    project: ProjectInfo,
+    file: string,
+    context?: AnalyzerContext,
+  ): Promise<Issue[]> {
+    const content = await readProjectSource(project.root, file, context?.files);
+    if (content === undefined) {
       return [];
     }
 

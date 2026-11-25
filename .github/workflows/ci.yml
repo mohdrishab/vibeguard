@@ -48,3 +48,27 @@ jobs:
           name: coverage
           path: coverage/
           retention-days: 7
+
+  windows:
+    name: Windows verification (Node 22)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (strict typecheck)
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test

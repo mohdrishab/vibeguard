@@ -4,7 +4,7 @@ import type { Linter } from 'eslint';
 import { isTypeScriptFile } from '@closed-door/core';
 import type { Issue, IssueCategory, IssueEvidence, ProjectInfo, Severity } from '@closed-door/core';
 
-import type { Analyzer } from '../analyzer.js';
+import type { Analyzer, AnalyzerContext } from '../analyzer.js';
 import {
   buildIssue,
   captureSnippet,
@@ -38,7 +38,7 @@ export class EslintAnalyzer implements Analyzer {
     return { kind: 'applicable' };
   }
 
-  public async analyze(project: ProjectInfo): Promise<readonly Issue[]> {
+  public async analyze(project: ProjectInfo, context?: AnalyzerContext): Promise<readonly Issue[]> {
     const files = lintableFiles(project.files);
     if (files.length === 0) {
       return [];
@@ -61,7 +61,7 @@ export class EslintAnalyzer implements Analyzer {
       }
       const file = relativePosix(project.root, result.filePath);
       for (const message of result.messages) {
-        issues.push(await this.toIssue(project, file, message));
+        issues.push(await this.toIssue(project, file, message, context));
       }
     }
     return issues;
@@ -76,6 +76,7 @@ export class EslintAnalyzer implements Analyzer {
     project: ProjectInfo,
     file: string,
     message: Linter.LintMessage,
+    context?: AnalyzerContext,
   ): Promise<Issue> {
     const fatal = message.fatal === true;
     const ruleId = message.ruleId ?? 'parse-error';
@@ -89,7 +90,7 @@ export class EslintAnalyzer implements Analyzer {
 
     const severity = clampSeverityForLint(meta.severity);
     const docUrl = fatal ? undefined : ruleDocUrl(ruleId);
-    const snippet = await captureSnippet(project.root, file, message.line);
+    const snippet = await captureSnippet(project.root, file, message.line, context?.files);
 
     const evidence: readonly IssueEvidence[] = makeEvidence(
       ruleId,

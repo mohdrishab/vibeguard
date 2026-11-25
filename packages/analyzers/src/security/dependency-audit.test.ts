@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
-import { DependencyAudit } from './dependency-audit.js';
+import { buildAuditCommand, DependencyAudit } from './dependency-audit.js';
 
 const disposables: Array<() => Promise<void>> = [];
 
@@ -172,7 +172,89 @@ describe('DependencyAudit', () => {
         entryPoints: [],
         configFiles: [],
       }),
-    ).rejects.toThrow(/audit command failed/u);
+    ).rejects.toThrow(/not found on PATH/u);
+  });
+
+  it('reports a timeout distinctly from a missing executable', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { somepkg: '^1.0.0' } })),
+    });
+
+    execFileMock.mockImplementation((file, args, options, callback) => {
+      callback(Object.assign(new Error('killed'), { killed: true, signal: 'SIGTERM' }), '', '');
+    });
+
+    const scanner = new DependencyAudit();
+    await expect(
+      scanner.analyze({
+        root,
+        name: 'test',
+        languages: ['javascript'],
+        frameworks: [],
+        packageManager: 'npm',
+        dependencies: ['somepkg'],
+        scripts: {},
+        files: ['package.json'],
+        entryPoints: [],
+        configFiles: [],
+      }),
+    ).rejects.toThrow(/timed out after 15 seconds/u);
+  });
+
+  it('invokes cmd.exe with a fixed allowlisted command on Windows', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { lodash: '^4.17.0' } })),
+    });
+
+    execFileMock.mockImplementation((file, args, options, callback) => {
+      callback(null, advisoryOverrides({}), '');
+    });
+
+    const scanner = new DependencyAudit('win32');
+    await scanner.analyze({
+      root,
+      name: 'test',
+      languages: ['javascript'],
+      frameworks: [],
+      packageManager: 'npm',
+      dependencies: ['lodash'],
+      scripts: {},
+      files: ['package.json', 'package-lock.json'],
+      entryPoints: [],
+      configFiles: [],
+    });
+
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+    const call = execFileMock.mock.calls[0] as [string, string[], Record<string, unknown>];
+    expect(call[0]).toBe('cmd.exe');
+    expect(call[1]).toEqual(['/d', '/s', '/c', 'npm.cmd audit --json']);
+    expect(call[2]).toMatchObject({ cwd: root, windowsHide: true, timeout: 15_000 });
+  });
+
+  it('does not interpolate project-controlled values into the shell command', async () => {
+    const maliciousRoot = 'C:\\project & calc.exe';
+    execFileMock.mockImplementation((file, args, options, callback) => {
+      callback(null, advisoryOverrides({}), '');
+    });
+
+    const scanner = new DependencyAudit('win32');
+    await scanner.analyze({
+      root: maliciousRoot,
+      name: 'x && calc.exe',
+      languages: ['javascript'],
+      frameworks: [],
+      packageManager: 'pnpm',
+      dependencies: ['lodash & calc.exe'],
+      scripts: { postinstall: 'calc.exe' },
+      files: ['package.json', 'pnpm-lock.yaml'],
+      entryPoints: [],
+      configFiles: [],
+    });
+
+    const call = execFileMock.mock.calls[0] as [string, string[], Record<string, unknown>];
+    expect(call[0]).toBe('cmd.exe');
+    expect(call[1]).toEqual(['/d', '/s', '/c', 'pnpm.cmd audit --json']);
+    expect(call[1].join(' ')).not.toContain('calc');
   });
 
   it('reads modern npm audit vulnerabilities output', async () => {
@@ -263,5 +345,41 @@ describe('DependencyAudit', () => {
     });
 
     expect(applicability.kind).toBe('not-applicable');
+  });
+});
+
+describe('buildAuditCommand', () => {
+  it('launches npm directly on POSIX platforms', () => {
+    expect(buildAuditCommand('npm', 'linux')).toEqual({ file: 'npm', args: ['audit', '--json'] });
+  });
+
+  it('launches pnpm directly on macOS', () => {
+    expect(buildAuditCommand('pnpm', 'darwin')).toEqual({
+      file: 'pnpm',
+      args: ['audit', '--json'],
+    });
+  });
+
+  it('routes npm through cmd.exe on Windows', () => {
+    expect(buildAuditCommand('npm', 'win32')).toEqual({
+      file: 'cmd.exe',
+      args: ['/d', '/s', '/c', 'npm.cmd audit --json'],
+    });
+  });
+
+  it('routes pnpm through cmd.exe on Windows', () => {
+    expect(buildAuditCommand('pnpm', 'win32')).toEqual({
+      file: 'cmd.exe',
+      args: ['/d', '/s', '/c', 'pnpm.cmd audit --json'],
+    });
+  });
+
+  it('rejects unsupported package managers instead of building a shell string', () => {
+    expect(() => buildAuditCommand('yarn; calc.exe' as never, 'win32')).toThrow(
+      /No dependency audit command/u,
+    );
+    expect(() => buildAuditCommand('yarn; calc.exe' as never, 'linux')).toThrow(
+      /No dependency audit command/u,
+    );
   });
 });
