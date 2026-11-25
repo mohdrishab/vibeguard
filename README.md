@@ -8,6 +8,24 @@ Current workflow: **Inspect → Analyze → Prioritize → Report in the termina
 
 > **Status: early prototype.** `init`, `scan`, and `config` are implemented. AI diagnosis, repair, verification, and report-file generation are not implemented yet — see [Roadmap](#roadmap).
 
+## Interactive console (in your terminal)
+
+Run `vibeguard` with no arguments in a TTY, or `vibeguard repl`, to open the interactive scan console. Everything happens in the terminal — no browser, server or dashboard is involved.
+
+```
+vibeguard ❯ scan .
+```
+
+The console runs the real scanner and streams: a stage timeline, a progress bar tied to completed work, timestamped `[INFO] / [SCAN] / [WARN] / [PASS] / [DONE]` events, and findings as analyzers finish. When the scan ends, an interactive split-pane report opens:
+
+- `↑` / `↓` (or `j` / `k`) select a finding; the right pane shows its evidence, explanation and recommended fix.
+- `0`–`4` filter by severity, `c` cycles categories, `s` changes sort order, `/` searches titles and paths.
+- `q` or `Esc` closes the report and returns to the prompt.
+- `Ctrl+C` cancels a running scan (partial results are labeled as cancelled).
+- `help`, `status`, `history`, `clear` and `exit` are also available at the prompt.
+
+Piped input and non-TTY environments get plain deterministic output instead of the animated frame. Set `VIBEGUARD_REDUCED_MOTION=1` to disable in-place animation; `NO_COLOR` is honored by Chalk.
+
 ## Usage
 
 All commands produce human output by default; add `--json` for stable, machine-readable output.

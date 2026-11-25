@@ -6,6 +6,7 @@ import { runInit } from './commands/init.js';
 import { runScan } from './commands/scan.js';
 import { resolveCommandRoot, runAction } from './commands/util.js';
 import { consoleIo } from './io.js';
+import { runRepl } from './repl.js';
 import type { Io } from './io.js';
 import { VIBEGUARD_VERSION } from './version.js';
 
@@ -78,6 +79,18 @@ export function createProgram(options: ProgramOptions = {}): Command {
     );
 
   program
+    .command('repl')
+    .description('Interactive in-terminal scan console with live progress and a diagnostic report')
+    .action(() =>
+      runAction(io, async () => {
+        await runRepl({
+          io,
+          ...(options.registry === undefined ? {} : { registry: options.registry }),
+        });
+      }),
+    );
+
+  program
     .command('config [dir]')
     .description('Show the resolved .vibeguardrc.json (or the applied defaults when none exists)')
     .option('--json', 'machine-readable JSON output', false)
@@ -87,6 +100,20 @@ export function createProgram(options: ProgramOptions = {}): Command {
         await runConfig(io, { root, json: cmdOptions.json });
       }),
     );
+
+  // With no subcommand, enter the console on a TTY; keep CI/pipe output stable.
+  program.action(() =>
+    runAction(io, async () => {
+      if (process.stdin.isTTY === true) {
+        await runRepl({
+          io,
+          ...(options.registry === undefined ? {} : { registry: options.registry }),
+        });
+      } else {
+        program.outputHelp();
+      }
+    }),
+  );
 
   return program;
 }

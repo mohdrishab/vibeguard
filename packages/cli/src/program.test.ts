@@ -31,10 +31,10 @@ describe('createProgram', () => {
     expect(VIBEGUARD_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('registers the init, scan, and config commands', () => {
+  it('registers the init, scan, config and repl commands', () => {
     const program = createProgram();
     const names = program.commands.map((command) => command.name());
-    expect(names).toEqual(expect.arrayContaining(['init', 'scan', 'config']));
+    expect(names).toEqual(expect.arrayContaining(['init', 'scan', 'config', 'repl']));
   });
 });
 
