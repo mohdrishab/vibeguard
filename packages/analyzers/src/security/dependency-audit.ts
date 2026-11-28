@@ -65,7 +65,8 @@ function describeAuditFailure(error: unknown, packageManager: AuditablePackageMa
 }
 
 export interface AuditVulnerability {
-  readonly id: string;
+  /** npm audit emits numeric advisory ids; older reports used strings. */
+  readonly id: number | string;
   readonly severity: 'critical' | 'high' | 'moderate' | 'low' | 'info';
   readonly package_name: string;
   readonly title: string;
@@ -194,7 +195,7 @@ export class DependencyAudit implements Analyzer {
             'or remove the dependency if it is no longer needed.',
           fixability: 'manual-only',
           source: DEP_AUDIT_ID,
-          evidence: makeEvidence(advisory.id, undefined, {
+          evidence: makeEvidence(String(advisory.id), undefined, {
             package: advisory.package_name,
             vulnerableVersions: advisory.vulnerable_versions,
             patchedIn: advisory.patched_in,

@@ -4,6 +4,22 @@ All notable changes to VibeGuard are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)).
 
+## [0.2.2] — 2026-11-28
+
+### Fixed
+
+- Published manifests no longer contain unresolved `workspace:*` dependency ranges, so a clean `npm i @closed-door/cli` installs correctly. (0.2.1 must be published with `pnpm publish`, not `npm publish`.)
+
+## [0.2.1] — 2026-11-28
+
+### Fixed
+
+- `scan` no longer crashes with `ruleId.localeCompare is not a function` when `npm audit` returns numeric advisory ids.
+- Numeric audit advisory ids are normalized to string rule ids when building findings.
+- `--version` now reports the published package version instead of a stale hard-coded `0.1.0`.
+- The TypeScript analyzer no longer reports diagnostics from `node_modules`, build output, or other files outside the scan index.
+- A `tsconfig.json` with no compiler options no longer falls back to bare TypeScript defaults, which produced false positives such as `TS1259`.
+
 ## [0.1.0] — unreleased
 
 ### Added

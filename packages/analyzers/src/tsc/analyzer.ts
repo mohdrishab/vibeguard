@@ -95,6 +95,13 @@ export class TsCompilerAnalyzer implements Analyzer {
     if (diagnostic.file !== undefined && relativeFile.startsWith('..')) {
       return undefined;
     }
+    // The compiler follows imports into node_modules, build output, and
+    // other paths the scan index deliberately excludes. Reporting those
+    // diagnostics would flood the scan with findings from code VibeGuard
+    // never inspected; only index entries are in scan scope.
+    if (diagnostic.file !== undefined && !project.files.includes(relativeFile)) {
+      return undefined;
+    }
 
     const start = diagnostic.start ?? 0;
     const end = diagnostic.start !== undefined ? start + (diagnostic.length ?? 0) : start;
@@ -181,7 +188,18 @@ function resolveProgramConfiguration(
   // though TS sources exist; fall back to the scan index for those.
   const rootNames = configFiles.length > 0 ? configFiles : projectFiles(tsFiles, project.root);
 
-  const baseOptions = parsed.commandLine?.options ?? permissiveOptions();
+  // A config that exists but declares no compiler options (solution-style
+  // or include-only configs) yields an empty options object, not `undefined`.
+  // Without this fallback the synthesized program would check project code
+  // with bare TypeScript defaults and report false positives for code the
+  // project never compiled that way (e.g. TS1259 on default imports).
+  const parsedOptions = parsed.commandLine?.options;
+  // `getParsedCommandLineOfConfigFile` always injects an internal
+  // `configFilePath` option, so it does not count as a user setting.
+  const hasCompilerOptions =
+    parsedOptions !== undefined &&
+    Object.keys(parsedOptions).some((key) => key !== 'configFilePath');
+  const baseOptions = hasCompilerOptions ? parsedOptions : permissiveOptions();
   return {
     rootNames,
     options: {

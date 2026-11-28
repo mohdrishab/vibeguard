@@ -1,6 +1,6 @@
 {
   "name": "@closed-door/cli",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "VibeGuard CLI — local-first JavaScript and TypeScript project scanner",
   "license": "Apache-2.0",
   "type": "module",

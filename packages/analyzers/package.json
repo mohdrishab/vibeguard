@@ -1,6 +1,6 @@
 {
   "name": "@closed-door/analyzers",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Deterministic static-analysis analyzers for VibeGuard",
   "license": "Apache-2.0",
   "type": "module",

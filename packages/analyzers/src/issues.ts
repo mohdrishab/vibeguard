@@ -34,10 +34,21 @@ export function sortIssues(issues: readonly Issue[]): readonly Issue[] {
       a.location.startLine - b.location.startLine ||
       a.location.endLine - b.location.endLine ||
       (a.location.startColumn ?? 0) - (b.location.startColumn ?? 0) ||
-      a.evidence[0]?.ruleId.localeCompare(b.evidence[0]?.ruleId ?? '') ||
-      0
+      compareRuleIds(a, b)
     );
   });
+}
+
+/**
+ * Compares the first evidence rule id without assuming its runtime type.
+ * `npm audit` emits numeric advisory ids even though the issue contract
+ * types `ruleId` as a string, and issues can carry no evidence at all.
+ * Coercing both sides keeps ordering deterministic for every shape.
+ */
+function compareRuleIds(a: Issue, b: Issue): number {
+  const aRuleId = a.evidence[0]?.ruleId;
+  const bRuleId = b.evidence[0]?.ruleId;
+  return String(aRuleId ?? '').localeCompare(String(bRuleId ?? ''));
 }
 
 /**

@@ -78,6 +78,15 @@ describe('TsCompilerAnalyzer', () => {
     expect(await new TsCompilerAnalyzer().analyze(looseProject)).toEqual([]);
   });
 
+  it('uses the safe preset when tsconfig has no compiler options', async () => {
+    const project = await projectFixture({
+      'tsconfig.json': JSON.stringify({ include: ['src'] }),
+      'src/with-import.ts': 'import path from "node:path";\nexport const sep = path.sep;\n',
+    });
+
+    expect(await new TsCompilerAnalyzer().analyze(project)).toEqual([]);
+  });
+
   it('surfaces broken tsconfig as a configuration-level issue', async () => {
     const project = await projectFixture({
       'tsconfig.json': '{"compilerOptions":{"thisOptionDoesNotExist":true}}',
@@ -106,6 +115,28 @@ describe('TsCompilerAnalyzer', () => {
       reason: 'No TypeScript sources to type-check.',
     });
     expect(await analyzer.analyze(jsProject)).toEqual([]);
+  });
+
+  it('ignores diagnostics from imported files outside the scan index', async () => {
+    const project = await projectFixture({
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          skipLibCheck: false,
+          target: 'ES2022',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+        },
+      }),
+      'src/index.ts':
+        'import type { Thing } from "fake-dep";\nconst value: Thing = { n: 1 };\nexport { value };\n',
+      'node_modules/fake-dep/index.d.ts':
+        'export interface Thing { n: string }\nconst broken: number = "not-a-number";\n',
+    });
+
+    const issues = await new TsCompilerAnalyzer().analyze(project);
+
+    expect(issues.some((issue) => issue.location.file.startsWith('node_modules/'))).toBe(false);
   });
 
   it('never emits build output to disk', async () => {

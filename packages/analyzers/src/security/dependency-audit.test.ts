@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestProject, minimalPackageJson, packageJsonText } from '@closed-door/testing';
+import { sortIssues } from '../issues.js';
 import { buildAuditCommand, DependencyAudit } from './dependency-audit.js';
 
 const disposables: Array<() => Promise<void>> = [];
@@ -78,6 +79,48 @@ describe('DependencyAudit', () => {
     expect(issues[0].location.file).toBe('package.json');
     expect(issues[0].source).toBe('dependency-audit');
     expect(issues[0].evidence[0]?.metadata?.package).toBe('lodash');
+  });
+
+  it('normalizes numeric npm advisory ids to string rule ids', async () => {
+    const root = await fixtureProject({
+      'package.json': packageJsonText(minimalPackageJson({ dependencies: { lodash: '^4.17.0' } })),
+    });
+
+    execFileMock.mockImplementation((file, args, options, callback) => {
+      callback(
+        null,
+        advisoryOverrides({
+          '1193683': {
+            id: 1193683,
+            severity: 'high',
+            package_name: 'lodash',
+            title: 'lodash issue',
+            vulnerable_versions: '<4.17.21',
+            patched_in: '>=4.17.21',
+            overview: 'a real npm audit advisory id is numeric',
+            accesses: ['public'],
+            find_in: ['dependencies'],
+          },
+        }),
+        '',
+      );
+    });
+
+    const issues = await new DependencyAudit().analyze({
+      root,
+      name: 'test',
+      languages: ['javascript'],
+      frameworks: [],
+      packageManager: 'npm',
+      dependencies: ['lodash'],
+      scripts: {},
+      files: ['package.json'],
+      entryPoints: [],
+      configFiles: [],
+    });
+
+    expect(issues[0]?.evidence[0]?.ruleId).toBe('1193683');
+    expect(() => sortIssues(issues)).not.toThrow();
   });
 
   it('maps moderate npm audit severity to high', async () => {
